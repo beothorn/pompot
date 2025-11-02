@@ -5,6 +5,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.file.Path;
 import java.util.Optional;
+
+import com.pompot.server.parser.ParsedPom;
+import com.pompot.server.parser.ParsedPomRepository;
+import com.pompot.server.parser.PomFileParser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.DefaultApplicationArguments;

@@ -1,4 +1,4 @@
-package com.pompot.server;
+package com.pompot.server.parser;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -16,14 +16,14 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 @Component
-class PomFileParser {
+public class PomFileParser {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(PomFileParser.class);
 
     private final ModelReader modelReader;
     private final ObjectMapper objectMapper;
 
-    PomFileParser(ObjectMapper objectMapper) {
+    public PomFileParser(ObjectMapper objectMapper) {
         this(new DefaultModelReader(), objectMapper);
     }
 
@@ -32,7 +32,7 @@ class PomFileParser {
         this.objectMapper = objectMapper;
     }
 
-    Optional<JsonNode> parse(Path projectRoot) {
+    public Optional<JsonNode> parse(Path projectRoot) {
         if (projectRoot == null) {
             return Optional.empty();
         }

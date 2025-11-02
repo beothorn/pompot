@@ -2,6 +2,7 @@ package com.pompot.server;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.pompot.server.arguments.ApplicationMode;
 import org.junit.jupiter.api.Test;
 
 class ApplicationModeTest {

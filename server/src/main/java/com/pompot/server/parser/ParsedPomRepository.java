@@ -1,23 +1,23 @@
-package com.pompot.server;
+package com.pompot.server.parser;
 
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import org.springframework.stereotype.Repository;
 
 @Repository
-class ParsedPomRepository {
+public class ParsedPomRepository {
 
     private final AtomicReference<ParsedPom> storage = new AtomicReference<>();
 
-    Optional<ParsedPom> fetch() {
+    public Optional<ParsedPom> fetch() {
         return Optional.ofNullable(storage.get());
     }
 
-    void store(ParsedPom parsedPom) {
+    public void store(ParsedPom parsedPom) {
         storage.set(parsedPom);
     }
 
-    void clear() {
+    public void clear() {
         storage.set(null);
     }
 }

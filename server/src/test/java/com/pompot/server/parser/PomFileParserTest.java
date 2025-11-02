@@ -1,4 +1,4 @@
-package com.pompot.server;
+package com.pompot.server.parser;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.file.Path;
 import java.util.Optional;
+
 import org.junit.jupiter.api.Test;
 
 class PomFileParserTest {
