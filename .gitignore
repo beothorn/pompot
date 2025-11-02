@@ -1,0 +1,20 @@
+# Node artifacts
+client/node_modules/
+client/dist/
+
+# Maven targets
+server/target/
+
+# Build outputs
+build/output/
+
+# IDE files
+*.iml
+.idea/
+.vscode/
+
+# OS files
+.DS_Store
+
+# Maven wrapper cache
+.mvn/wrapper/maven-wrapper.jar
