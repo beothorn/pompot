@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      - name: Install client dependencies
+        run: |
+          cd client
+          npm ci
+      - name: Build client
+        run: |
+          cd client
+          npm run build
+      - name: Set up Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Build server jar
+        run: |
+          ./build/build.sh
+      - name: Run server tests
+        run: |
+          cd server
+          mvn -B test
