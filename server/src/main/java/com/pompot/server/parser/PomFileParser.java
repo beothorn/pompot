@@ -27,7 +27,7 @@ public class PomFileParser {
         this(new DefaultModelReader(), objectMapper);
     }
 
-    PomFileParser(ModelReader modelReader, ObjectMapper objectMapper) {
+    public PomFileParser(ModelReader modelReader, ObjectMapper objectMapper) {
         this.modelReader = modelReader;
         this.objectMapper = objectMapper;
     }
