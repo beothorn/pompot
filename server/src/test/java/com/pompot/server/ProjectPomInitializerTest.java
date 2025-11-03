@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.file.Path;
 import java.util.Optional;
 
+import org.apache.maven.model.io.DefaultModelReader;
 import com.pompot.server.parser.ParsedPom;
 import com.pompot.server.parser.ParsedPomRepository;
 import com.pompot.server.parser.PomFileParser;
@@ -21,7 +22,7 @@ class ProjectPomInitializerTest {
     @BeforeEach
     void setUp() {
         ObjectMapper objectMapper = new ObjectMapper();
-        PomFileParser parser = new PomFileParser(objectMapper);
+        PomFileParser parser = new PomFileParser(new DefaultModelReader(), objectMapper);
         parsedPomRepository = new ParsedPomRepository();
         initializer = new ProjectPomInitializer(parser, parsedPomRepository);
     }

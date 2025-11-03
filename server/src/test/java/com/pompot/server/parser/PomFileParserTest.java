@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.file.Path;
 import java.util.Optional;
 
+import org.apache.maven.model.io.DefaultModelReader;
 import org.junit.jupiter.api.Test;
 
 class PomFileParserTest {
@@ -17,7 +18,7 @@ class PomFileParserTest {
     @Test
     void parsesPomIntoJsonTree() {
         Path projectRoot = Path.of("src", "test", "resources", "projects", "simple");
-        PomFileParser parser = new PomFileParser(objectMapper);
+        PomFileParser parser = new PomFileParser(new DefaultModelReader(), objectMapper);
 
         Optional<JsonNode> parsedModel = parser.parse(projectRoot);
 

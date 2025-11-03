@@ -9,28 +9,18 @@ import java.nio.file.Path;
 import java.util.Map;
 import java.util.Optional;
 import org.apache.maven.model.Model;
-import org.apache.maven.model.io.DefaultModelReader;
 import org.apache.maven.model.io.ModelReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
-
 /**
  * Parses pom.xml files from a project root into JSON representations so the UI can render them.
  */
-@Component
 public class PomFileParser {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(PomFileParser.class);
 
     private final ModelReader modelReader;
     private final ObjectMapper objectMapper;
-
-    @Autowired
-    public PomFileParser(ObjectMapper objectMapper) {
-        this(new DefaultModelReader(), objectMapper);
-    }
 
     /**
      * Creates a parser using the provided Maven model reader and JSON mapper.

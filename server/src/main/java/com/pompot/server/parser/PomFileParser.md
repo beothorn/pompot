@@ -5,13 +5,6 @@ Parses a Maven `pom.xml` file located inside a project directory and converts it
 ## Constructor
 
 ### Parameters
-- `ObjectMapper objectMapper` – Used to transform the Maven model into a JSON tree.
-
-Creates an instance backed by Maven's `DefaultModelReader`.
-
-## Constructor
-
-### Parameters
 - `ModelReader modelReader`
 - `ObjectMapper objectMapper`
 
