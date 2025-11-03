@@ -15,6 +15,9 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
 
+/**
+ * Bootstraps pom parsing when the application starts in UI mode.
+ */
 @Component
 class ProjectPomInitializer implements ApplicationRunner {
 
@@ -23,11 +26,20 @@ class ProjectPomInitializer implements ApplicationRunner {
     private final PomFileParser pomFileParser;
     private final ParsedPomRepository parsedPomRepository;
 
+    /**
+     * Creates the initializer with parsing collaborators.
+     * @param pomFileParser parser used to read pom.xml files.
+     * @param parsedPomRepository repository that stores the parsed result.
+     */
     ProjectPomInitializer(PomFileParser pomFileParser, ParsedPomRepository parsedPomRepository) {
         this.pomFileParser = pomFileParser;
         this.parsedPomRepository = parsedPomRepository;
     }
 
+    /**
+     * Reads the --project argument and attempts to parse the referenced pom file.
+     * @param arguments command-line arguments supplied to the Spring application.
+     */
     @Override
     public void run(ApplicationArguments arguments) {
         if (!arguments.containsOption("project")) {

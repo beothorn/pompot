@@ -13,8 +13,12 @@ import org.apache.maven.model.io.DefaultModelReader;
 import org.apache.maven.model.io.ModelReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+/**
+ * Parses pom.xml files from a project root into JSON representations so the UI can render them.
+ */
 @Component
 public class PomFileParser {
 
@@ -23,15 +27,26 @@ public class PomFileParser {
     private final ModelReader modelReader;
     private final ObjectMapper objectMapper;
 
+    @Autowired
     public PomFileParser(ObjectMapper objectMapper) {
         this(new DefaultModelReader(), objectMapper);
     }
 
+    /**
+     * Creates a parser using the provided Maven model reader and JSON mapper.
+     * @param modelReader reader capable of interpreting pom.xml files.
+     * @param objectMapper mapper used to convert the parsed model into JSON.
+     */
     public PomFileParser(ModelReader modelReader, ObjectMapper objectMapper) {
         this.modelReader = modelReader;
         this.objectMapper = objectMapper;
     }
 
+    /**
+     * Parses the pom.xml located inside the provided project root.
+     * @param projectRoot path to the project that contains the pom.xml file.
+     * @return the parsed pom as JSON when successful, otherwise {@link Optional#empty()}.
+     */
     public Optional<JsonNode> parse(Path projectRoot) {
         if (projectRoot == null) {
             return Optional.empty();

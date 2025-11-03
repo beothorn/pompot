@@ -8,8 +8,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 /**
- * The entry point for our application.
- * This will be both the entrypoint the will call parsing of arguments and star the spring application.
+ * Entry point for both the CLI and UI modes of the application, handling argument parsing and bootstrapping Spring.
  */
 @SpringBootApplication
 public class PompotApplication {
@@ -17,8 +16,8 @@ public class PompotApplication {
     public static final String DEFAULT_PORT = "9754";
 
     /**
-     * The entrypoint for the application.
-     * @param args
+     * Launches the application respecting the selected mode.
+     * @param args command-line arguments passed to the JVM.
      */
     public static void main(String[] args) {
         ApplicationMode mode = ApplicationMode.fromArguments(args);
