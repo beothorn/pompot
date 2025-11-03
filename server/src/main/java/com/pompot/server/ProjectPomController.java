@@ -9,6 +9,9 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * Exposes parsed pom metadata to the UI via HTTP endpoints.
+ */
 @RestController
 @RequestMapping("/api/pom")
 class ProjectPomController {
@@ -19,6 +22,10 @@ class ProjectPomController {
         this.parsedPomRepository = parsedPomRepository;
     }
 
+    /**
+     * Returns the parsed pom model stored in memory, if any.
+     * @return HTTP 200 with the parsed model or 404 when nothing is stored.
+     */
     @GetMapping
     ResponseEntity<ParsedPom> fetchParsedPom() {
         Optional<ParsedPom> parsedPom = parsedPomRepository.fetch();
