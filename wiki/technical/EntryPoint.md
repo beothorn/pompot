@@ -13,17 +13,17 @@ This section mirrors the behaviors encoded in the server so maintainers can map 
    - `isCli` centralizes the CLI check so callers do not reimplement comparisons.
 3. **Startup parsing** (`server/src/main/java/com/pompot/server/ProjectPomInitializer.java`)
    - Implements `ApplicationRunner` so it executes after the Spring context is ready in UI mode.
-   - Reads the first `--project` value, validates the path and forwards it to the parser.
-   - Stores a `ParsedPom` with the absolute project root or clears the repository when parsing fails, preserving deterministic controller behavior.
+   - Resolves the scan root from `--parent` or defaults to the working directory, recursively discovering every `pom.xml`.
+   - Stores a `ParsedPomCollection` with metadata for each parsed file or clears the repository when traversal or parsing fails.
 4. **pom.xml parser** (`server/src/main/java/com/pompot/server/parser/PomFileParser.java`)
-   - Wraps Maven's `ModelReader` to read the `pom.xml` file selected by the initializer.
-   - Converts the `Model` to JSON through Jackson while scrubbing recursive `Xpp3Dom` parent references so serialization terminates.
+   - Wraps Maven's `ModelReader` to read the `pom.xml` files selected by the initializer.
+   - Converts each `Model` to JSON through Jackson while scrubbing recursive `Xpp3Dom` parent references so serialization terminates.
    - Returns `Optional.empty()` for missing files, invalid paths or runtime exceptions, keeping error handling consistent across callers.
 5. **In-memory storage** (`server/src/main/java/com/pompot/server/parser/ParsedPomRepository.java`)
-   - Uses an `AtomicReference` to store the latest parsed snapshot.
+   - Uses an `AtomicReference` to store the latest `ParsedPomCollection`.
    - `fetch`, `store` and `clear` wrap direct mutations to make concurrent controller access predictable.
 6. **HTTP controller** (`server/src/main/java/com/pompot/server/ProjectPomController.java`)
-   - Exposes `GET /api/pom`, returning `200` with the stored JSON or `404` when the repository is empty.
+   - Exposes `GET /api/pom`, returning `200` with the stored collection or `404` when the repository is empty.
    - Provides the UI with a stable contract that mirrors the repository semantics.
 
 ## Data flow summary

@@ -1,12 +1,12 @@
 # ProjectPomInitializer
 
-Loads the project's pom file when the application boots in UI mode.
+Loads every `pom.xml` file found under the working directory (or `--parent` argument) when the application boots in UI mode.
 
 ## Constructor
 
 ### Parameters
-- `PomFileParser pomFileParser` – Reads the pom file and converts it into a JSON tree.
-- `ParsedPomRepository parsedPomRepository` – Stores the parsed result for later retrieval.
+- `PomFileParser pomFileParser` – Reads pom files and converts them into JSON trees.
+- `ParsedPomRepository parsedPomRepository` – Stores the parsed results for later retrieval.
 
 ## run
 
@@ -15,14 +15,21 @@ Loads the project's pom file when the application boots in UI mode.
 
 ### Pseudocode
 ```
-if --project argument is missing:
+scanRoot = resolve --parent argument or working directory
+if scanRoot invalid:
   clear repository and return
-fetch first value of --project argument
-if value is absent or invalid path:
+pomFiles = recursively list pom.xml under scanRoot
+  ignore entries without a valid file name
+if no pomFiles:
   clear repository and return
-parse pom using PomFileParser
-if parsing failed:
+for each pomFile:
+  parse directory containing pom
+  if parsing succeeds:
+    derive relative path
+    collect parsed entry with metadata
+if no entries parsed:
   clear repository and return
-store parsed pom (with absolute path) in repository
-log that parsing succeeded
+sort entries by groupId, artifactId and relative path
+store collection in repository with absolute scan root
+log how many pom files were parsed
 ```

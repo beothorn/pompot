@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import org.apache.maven.model.Parent;
 import org.apache.maven.model.Build;
 import org.apache.maven.model.BuildBase;
 import org.apache.maven.model.Model;
@@ -49,7 +50,7 @@ public class PomFileParser {
      * @param projectRoot path to the project that contains the pom.xml file.
      * @return the parsed pom as JSON when successful, otherwise {@link Optional#empty()}.
      */
-    public Optional<JsonNode> parse(Path projectRoot) {
+    public Optional<PomParseResult> parse(Path projectRoot) {
         if (projectRoot == null) {
             return Optional.empty();
         }
@@ -66,7 +67,9 @@ public class PomFileParser {
             Model model = modelReader.read(pomFile, options);
             removeRecursiveParentPointers(model);
             JsonNode asJson = objectMapper.valueToTree(model);
-            return Optional.ofNullable(asJson);
+            String groupId = resolveGroupId(model);
+            String artifactId = resolveArtifactId(model);
+            return Optional.of(new PomParseResult(groupId, artifactId, asJson));
         } catch (IOException exception) {
             LOGGER.error("Failed to parse pom.xml at {}", pomLocation.toAbsolutePath(), exception);
             return Optional.empty();
@@ -75,6 +78,55 @@ public class PomFileParser {
                 "Unexpected failure while converting pom.xml at {} into JSON", pomLocation.toAbsolutePath(), exception);
             return Optional.empty();
         }
+    }
+
+    /**
+     * Determines the most appropriate group identifier for the provided Maven model.
+     * @param model parsed Maven model.
+     * @return resolved group identifier or an empty string when none is available.
+     */
+    private String resolveGroupId(Model model) {
+        if (model == null) {
+            return "";
+        }
+
+        String groupId = normalize(model.getGroupId());
+        if (!groupId.isEmpty()) {
+            return groupId;
+        }
+
+        Parent parent = model.getParent();
+        if (parent != null) {
+            return normalize(parent.getGroupId());
+        }
+
+        return "";
+    }
+
+    /**
+     * Resolves the artifact identifier for the provided Maven model.
+     * @param model parsed Maven model.
+     * @return artifact identifier or an empty string when unavailable.
+     */
+    private String resolveArtifactId(Model model) {
+        if (model == null) {
+            return "";
+        }
+
+        return normalize(model.getArtifactId());
+    }
+
+    /**
+     * Converts {@code null} values into empty strings while trimming whitespace.
+     * @param value value to normalize.
+     * @return trimmed value or empty string when {@code null}.
+     */
+    private String normalize(String value) {
+        if (value == null) {
+            return "";
+        }
+
+        return value.trim();
     }
 
     /**

@@ -8,10 +8,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 /**
- * Verifies that the application parses the pom when the --project argument is provided.
+ * Verifies that the application parses pom files when the --parent argument is provided.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE,
-        args = "--project=src/test/resources/projects/simple")
+        args = "--parent=src/test/resources/projects")
 class ProjectPomInitializerIntegrationTest {
 
     @Autowired
@@ -19,6 +19,6 @@ class ProjectPomInitializerIntegrationTest {
 
     @Test
     void storesParsedPomDuringStartup() {
-        assertTrue(repository.fetch().isPresent(), "Expected parsed pom to be stored on startup");
+        assertTrue(repository.fetch().isPresent(), "Expected parsed poms to be stored on startup");
     }
 }

@@ -5,7 +5,7 @@ Pompot is a Maven manager that keeps multi-repository work synchronized. It mirr
 ## Features
 
 - **Dual execution modes**: UI mode boots Spring Boot while CLI mode prints the product banner without starting the server.
-- **pom.xml bootstrapping**: pass `--project=<path>` to parse that directory's `pom.xml` into a JSON snapshot.
+- **pom.xml bootstrapping**: run Pompot inside the target workspace or pass `--parent=<path>` to parse every descendant `pom.xml` into a JSON snapshot.
 - **REST access**: UI mode serves `GET /api/pom`, returning the cached snapshot or `404` when nothing is stored.
 - **Deterministic defaults**: the UI server binds to port `9754`, matching the constant exposed in code.
 

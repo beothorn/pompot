@@ -1,6 +1,6 @@
 # ProjectPomController
 
-REST endpoint that exposes the parsed pom model to the client application.
+REST endpoint that exposes parsed pom inventory to the client application.
 
 ## Constructor
 
@@ -10,12 +10,12 @@ REST endpoint that exposes the parsed pom model to the client application.
 ## fetchParsedPom
 
 ### Returns
-- `ResponseEntity<ParsedPom>` – HTTP 200 with parsed pom data or HTTP 404 when the pom was not loaded.
+- `ResponseEntity<ParsedPomCollection>` – HTTP 200 with parsed pom data or HTTP 404 when nothing was loaded.
 
 ### Pseudocode
 ```
-retrieve parsed pom from repository
+retrieve parsed pom collection from repository
 if empty:
   return 404 response
-return 200 response containing parsed pom data
+return 200 response containing the collection
 ```

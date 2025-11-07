@@ -7,9 +7,10 @@ The steps below restate what the server already performs so operators can follow
 1. Build or download `pompot.jar`.
 2. Run UI mode (default) to serve the REST API:
    ```bash
-   java -jar pompot.jar --project=/path/to/project
+   java -jar pompot.jar
    ```
-   - The `--project` flag points to the directory containing `pom.xml`.
+   - Pompot scans the current working directory recursively.
+   - Provide `--parent=/path/to/workspace` to scan a different directory while keeping UI mode enabled.
    - UI mode binds to port `9754`, matching the `DEFAULT_PORT` constant in `PompotApplication`.
 3. Run CLI mode when you only need the product banner:
    ```bash
@@ -19,13 +20,13 @@ The steps below restate what the server already performs so operators can follow
 
 ## Parsing behavior
 
-- When `--project` is omitted or empty, the initializer clears the stored snapshot and the controller will respond with `404`.
-- When `--project` points to an invalid path, the application logs an error and also clears the stored snapshot.
-- On success the parser produces a JSON representation of the Maven model and stores it alongside the absolute project root path.
+- When `--parent` is omitted Pompot scans the working directory and stores every descendant `pom.xml` that parses successfully.
+- When `--parent` is empty or invalid, the application logs an error and clears any previously stored data.
+- On success the parser produces JSON representations of the Maven models together with their file metadata.
 
 ## Retrieving the parsed pom
 
-1. Start the application in UI mode with a valid `--project` argument.
+1. Start the application in UI mode from the target workspace or supply `--parent=/path/to/workspace`.
 2. Issue an HTTP request:
    ```bash
    curl http://localhost:9754/api/pom

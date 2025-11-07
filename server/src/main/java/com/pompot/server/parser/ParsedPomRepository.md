@@ -1,16 +1,16 @@
 # ParsedPomRepository
 
-Thread-safe in-memory store for the parsed pom information.
+Thread-safe in-memory store for the parsed pom scan information.
 
 ## fetch
 
 ### Returns
-- `Optional<ParsedPom>` – Latest parsed pom if available.
+- `Optional<ParsedPomCollection>` – Latest parsed pom inventory if available.
 
 ## store
 
 ### Parameters
-- `ParsedPom parsedPom` – Value to persist in memory.
+- `ParsedPomCollection parsedPomCollection` – Value to persist in memory.
 
 Replaces any previously stored data.
 

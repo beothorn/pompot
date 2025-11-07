@@ -10,13 +10,13 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class ParsedPomRepository {
 
-    private final AtomicReference<ParsedPom> storage = new AtomicReference<>();
+    private final AtomicReference<ParsedPomCollection> storage = new AtomicReference<>();
 
     /**
      * Retrieves the stored parsed pom.
      * @return the current parsed pom when present.
      */
-    public Optional<ParsedPom> fetch() {
+    public Optional<ParsedPomCollection> fetch() {
         return Optional.ofNullable(storage.get());
     }
 
@@ -24,8 +24,8 @@ public class ParsedPomRepository {
      * Replaces the stored parsed pom with a new value.
      * @param parsedPom parsed pom information to store.
      */
-    public void store(ParsedPom parsedPom) {
-        storage.set(parsedPom);
+    public void store(ParsedPomCollection parsedPomCollection) {
+        storage.set(parsedPomCollection);
     }
 
     /**

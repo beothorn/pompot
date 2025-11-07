@@ -3,10 +3,13 @@ package com.pompot.server.parser;
 import com.fasterxml.jackson.databind.JsonNode;
 
 /**
- * Snapshot of the parsed pom.xml, containing the project root and its JSON representation.
+ * Snapshot of a parsed pom.xml including metadata useful for the UI.
  *
- * @param projectRoot absolute path to the project whose pom.xml was parsed.
+ * @param pomPath absolute path to the pom file.
+ * @param relativePath relative path from the scanned root to the pom file.
+ * @param groupId Maven group identifier resolved for the pom.
+ * @param artifactId Maven artifact identifier resolved for the pom.
  * @param model JSON representation of the Maven model produced by {@link PomFileParser}.
  */
-public record ParsedPom(String projectRoot, JsonNode model) {
+public record ParsedPom(String pomPath, String relativePath, String groupId, String artifactId, JsonNode model) {
 }

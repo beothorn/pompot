@@ -17,7 +17,7 @@ later mutations from outside do not affect parser behavior.
 - `Path projectRoot` – Directory that should contain the `pom.xml`.
 
 ### Returns
-- `Optional<JsonNode>` – Present when parsing was successful.
+- `Optional<PomParseResult>` – Present when parsing was successful.
 
 ### Pseudocode
 ```
@@ -29,7 +29,8 @@ if pomLocation is not a regular file:
 try reading model using Maven's ModelReader with non-strict mode
 remove parent pointers from any Xpp3Dom configurations to avoid recursion
 convert model to JsonNode via ObjectMapper
-return optional containing JsonNode
+derive groupId and artifactId (fallback to parent when absent)
+return optional containing PomParseResult with metadata and JsonNode
 catch IOException or runtime serialization errors:
   log error and return empty optional
 ```
