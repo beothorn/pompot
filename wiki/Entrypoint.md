@@ -1,14 +1,19 @@
-# Pompot
+# Pompot Wiki
 
 Welcome to pompot.
 
-Pompot is a maven projects manager.  
-It is a way to manage the chaos of having a whole ecosystem of maven projects. 
-This wiki describes how to use it and all functionalities. 
+Pompot is a Maven projects manager that orchestrates work across multiple repositories so teams can reason about their entire ecosystem at once. This wiki repeats the core behaviors documented in code and tests so every reader can confirm what the tool already provides today.
 
-# Running
+## Current features
 
-After downloading the jar, you can run it with:
-```
-java -jar pompot
-```
+- **Dual execution modes**: the server starts in UI mode by default and exposes a REST API, while the CLI mode prints product information for headless workflows.
+- **pom.xml bootstrapping**: when launched with the `--project` argument the application parses that directory's `pom.xml` file and stores a JSON snapshot in memory.
+- **HTTP access to parsed metadata**: UI mode serves `GET /api/pom`, returning the stored pom snapshot or `404` when no project has been parsed yet.
+- **Default Spring Boot server**: UI mode binds to port `9754`, making it easy to run the UI alongside other services.
+
+## Documentation map
+
+- [Usage guide](usage/EntryPoint.md) — covers startup parameters, modes and HTTP workflows.
+- [Technical reference](technical/EntryPoint.md) — documents the server components that implement parsing and storage.
+
+Each section echoes the runtime behavior that the code already enforces so maintainers can cross-reference intent quickly.

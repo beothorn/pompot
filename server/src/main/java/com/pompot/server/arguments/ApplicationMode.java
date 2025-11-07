@@ -4,16 +4,16 @@ import java.util.Arrays;
 
 /**
  * Represents the application mode chosen on start.
- * It can be cli (headless) or ui (browser mode)
+ * UI mode boots the HTTP server, while CLI mode keeps the process headless.
  */
 public enum ApplicationMode {
     UI,
     CLI;
 
     /**
-     * Parse the arguments to get the mode.
-     * @param arguments The arguments from the command line.
-     * @return The application mode, ui or cli.
+     * Parses the command-line arguments to determine the requested mode.
+     * @param arguments arguments received by {@link com.pompot.server.PompotApplication#main(String[])}.
+     * @return {@link #CLI} when "--mode=cli" is present; {@link #UI} otherwise.
      */
     public static ApplicationMode fromArguments(String[] arguments) {
         boolean cliRequested = Arrays.stream(arguments)
@@ -22,8 +22,8 @@ public enum ApplicationMode {
     }
 
     /**
-     * Checks if the application mode passed on the execution on cli is cli or ui.
-     * @return true if is cli, false is ui (browser mode)
+     * Indicates whether the application should run without the HTTP server.
+     * @return {@code true} for CLI mode; {@code false} for UI mode.
      */
     public boolean isCli() {
         return this == CLI;
