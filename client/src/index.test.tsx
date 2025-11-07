@@ -82,9 +82,19 @@ describe('App', () => {
     const user = userEvent.setup();
     await user.click(summary);
 
-    expect(await screen.findByText("modelVersion: '4.0.0'", { exact: false })).toBeInTheDocument();
-    expect(await screen.findByText(/parent:/)).toBeInTheDocument();
-    expect(await screen.findByText("groupId: 'org.example'", { exact: false })).toBeInTheDocument();
+    const modelSummary = await screen.findByText('Model');
+    expect(modelSummary).toBeInTheDocument();
+
+    const modelVersionInput = await screen.findByLabelText('modelVersion');
+    expect(modelVersionInput).toHaveValue('4.0.0');
+    expect(modelVersionInput).toHaveAttribute('data-pompath', '/projects/sample/pom.xml.modelVersion');
+
+    const parentSummary = await screen.findByText('parent · org.example:demo');
+    await user.click(parentSummary);
+
+    const parentGroupIdInput = await screen.findByLabelText('groupId');
+    expect(parentGroupIdInput).toHaveValue('org.example');
+    expect(parentGroupIdInput).toHaveAttribute('data-pompath', '/projects/sample/pom.xml.parent.groupId');
 
     expect(response.json).toHaveBeenCalledTimes(1);
   });
