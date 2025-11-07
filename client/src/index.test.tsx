@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import React from 'react';
 import { App } from './index';
 
@@ -37,16 +38,24 @@ describe('App', () => {
     );
   });
 
-  it('shows the parsed pom when the server responds successfully', async () => {
+  it('shows the parsed poms when the server responds successfully', async () => {
     const parsedResponse = {
-      projectRoot: '/projects/sample',
-      model: {
-        modelVersion: '4.0.0',
-        parent: {
+      scannedRoot: '/projects',
+      entries: [
+        {
+          pomPath: '/projects/sample/pom.xml',
+          relativePath: 'sample/pom.xml',
           groupId: 'org.example',
           artifactId: 'demo',
+          model: {
+            modelVersion: '4.0.0',
+            parent: {
+              groupId: 'org.example',
+              artifactId: 'demo',
+            },
+          },
         },
-      },
+      ],
     };
     const response: MockResponse = {
       status: 200,
@@ -60,10 +69,18 @@ describe('App', () => {
 
     render(<App />);
 
-    const projectPath = await screen.findByText(parsedResponse.projectRoot, {
+    expect(await screen.findByText('Scanned root:')).toBeInTheDocument();
+    const rootPath = await screen.findByText(parsedResponse.scannedRoot, {
       selector: 'code',
     });
-    expect(projectPath).toBeInTheDocument();
+    expect(rootPath).toBeInTheDocument();
+
+    expect(await screen.findByRole('heading', { level: 2, name: 'org.example' })).toBeInTheDocument();
+    const summary = await screen.findByText(parsedResponse.entries[0].relativePath);
+    expect(summary).toBeInTheDocument();
+
+    const user = userEvent.setup();
+    await user.click(summary);
 
     expect(await screen.findByText("modelVersion: '4.0.0'", { exact: false })).toBeInTheDocument();
     expect(await screen.findByText(/parent:/)).toBeInTheDocument();

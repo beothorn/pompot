@@ -1,9 +1,18 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
+import styled from 'styled-components';
+
+type ParsedPomEntry = {
+  pomPath: string;
+  relativePath: string;
+  groupId: string | null;
+  artifactId: string | null;
+  model: unknown;
+};
 
 type ParsedPomResponse = {
-  projectRoot: string;
-  model: unknown;
+  scannedRoot: string;
+  entries: ParsedPomEntry[];
 };
 
 type LoadState = 'loading' | 'ready' | 'empty' | 'error';
@@ -82,9 +91,188 @@ const formatValue = (value: unknown, indent = 0): string => {
   return `${spacing}${String(value)}`;
 };
 
+const Page = styled.main`
+  font-family: 'Inter, system-ui, sans-serif';
+  margin: 2rem auto 3rem;
+  max-width: 960px;
+  line-height: 1.5;
+  color: #1f2933;
+  padding: 0 1.5rem;
+`;
+
+const PageHeader = styled.header`
+  margin-bottom: 2.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+`;
+
+const Title = styled.h1`
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 700;
+`;
+
+const Subtitle = styled.p`
+  margin: 0;
+  color: #52606d;
+  font-size: 1rem;
+`;
+
+const StatusSection = styled.section`
+  background: #f5f7fa;
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+  color: #1f2933;
+  box-shadow: inset 0 0 0 1px #d9e2ec;
+`;
+
+const GroupsContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+`;
+
+const GroupSection = styled.section`
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+`;
+
+const GroupTitle = styled.h2`
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: #243b53;
+`;
+
+const PomDetails = styled.details`
+  border-radius: 0.75rem;
+  border: 1px solid #d9e2ec;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.1);
+  overflow: hidden;
+  transition: box-shadow 0.2s ease;
+
+  &[open] {
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.14);
+  }
+`;
+
+const PomSummary = styled.summary`
+  cursor: pointer;
+  padding: 1rem 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  list-style: none;
+  background: #f0f4f8;
+  color: #1f2933;
+  font-weight: 600;
+  user-select: none;
+  transition: background 0.2s ease;
+
+  &:hover {
+    background: #e1e8f0;
+  }
+
+  &::-webkit-details-marker {
+    display: none;
+  }
+`;
+
+const SummaryPath = styled.span`
+  font-family: 'SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace';
+  font-size: 0.9rem;
+  color: #334155;
+`;
+
+const SummaryMeta = styled.span`
+  font-size: 0.9rem;
+  color: #52606d;
+`;
+
+const SummaryIcon = styled.span`
+  margin-left: auto;
+  color: #3a4b6a;
+  font-size: 0.9rem;
+  transition: transform 0.2s ease;
+
+  ${PomDetails}[open] & {
+    transform: rotate(180deg);
+  }
+`;
+
+const PomBody = styled.div`
+  padding: 1rem 1.25rem 1.5rem;
+  border-top: 1px solid #d9e2ec;
+  background: #ffffff;
+`;
+
+const Metadata = styled.div`
+  margin-bottom: 1rem;
+  display: grid;
+  gap: 0.35rem;
+  color: #3a4b6a;
+  font-size: 0.95rem;
+
+  code {
+    font-family: 'SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace';
+    background: #f0f4f8;
+    border-radius: 0.5rem;
+    padding: 0.1rem 0.4rem;
+    color: #243b53;
+    font-size: 0.9rem;
+  }
+`;
+
+const MetadataLabel = styled.span`
+  font-weight: 600;
+  color: #1f2933;
+`;
+
+const CodeBlock = styled.pre`
+  background: #10172a;
+  color: #e5e9f0;
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+  overflow-x: auto;
+  font-family: 'SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace';
+  font-size: 0.95rem;
+  line-height: 1.6;
+  margin: 0;
+`;
+
+const RootPath = styled.div`
+  margin-bottom: 1.5rem;
+  font-size: 0.95rem;
+  color: #3a4b6a;
+
+  code {
+    font-family: 'SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace';
+    font-size: 0.9rem;
+    background: #f0f4f8;
+    border-radius: 0.5rem;
+    padding: 0.15rem 0.45rem;
+    color: #243b53;
+  }
+`;
+
+const UNKNOWN_GROUP_LABEL = '(no group id)';
+const UNKNOWN_ARTIFACT_LABEL = '(no artifact id)';
+
+const normalizeCoordinatePart = (value: string | null | undefined, fallback: string): string => {
+  if (typeof value !== 'string') {
+    return fallback;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length === 0 ? fallback : trimmed;
+};
+
 export const App: React.FC = () => {
   const [status, setStatus] = React.useState<LoadState>('loading');
-  const [parsedPom, setParsedPom] = React.useState<ParsedPomResponse | null>(null);
+  const [parsedPoms, setParsedPoms] = React.useState<ParsedPomResponse | null>(null);
   const [errorMessage, setErrorMessage] = React.useState<string>('');
 
   React.useEffect(() => {
@@ -96,7 +284,7 @@ export const App: React.FC = () => {
     fetch('/api/pom', { signal: controller.signal })
       .then((response) => {
         if (response.status === 404) {
-          setParsedPom(null);
+          setParsedPoms(null);
           setStatus('empty');
           return null;
         }
@@ -112,7 +300,7 @@ export const App: React.FC = () => {
           return;
         }
 
-        setParsedPom(data);
+        setParsedPoms(data);
         setStatus('ready');
       })
       .catch((error) => {
@@ -130,45 +318,66 @@ export const App: React.FC = () => {
     };
   }, []);
 
-  const formattedPom = React.useMemo(() => {
-    if (!parsedPom) {
-      return '';
+  const groupedEntries = React.useMemo(() => {
+    if (!parsedPoms) {
+      return [] as Array<{ groupId: string; entries: ParsedPomEntry[] }>;
     }
 
-    return formatValue(parsedPom.model);
-  }, [parsedPom]);
+    const groups = new Map<string, ParsedPomEntry[]>();
+    parsedPoms.entries.forEach((entry) => {
+      const key = normalizeCoordinatePart(entry.groupId, UNKNOWN_GROUP_LABEL);
+      const existing = groups.get(key);
+      if (existing) {
+        existing.push(entry);
+      } else {
+        groups.set(key, [entry]);
+      }
+    });
+
+    return Array.from(groups.entries())
+      .map(([groupId, entries]) => ({
+        groupId,
+        entries: entries
+          .slice()
+          .sort((first, second) => first.relativePath.localeCompare(second.relativePath)),
+      }))
+      .sort((first, second) => first.groupId.localeCompare(second.groupId));
+  }, [parsedPoms]);
+
+  const formattedEntries = React.useMemo(() => {
+    if (!parsedPoms) {
+      return new Map<string, string>();
+    }
+
+    return parsedPoms.entries.reduce((accumulator, entry) => {
+      accumulator.set(entry.pomPath, formatValue(entry.model));
+      return accumulator;
+    }, new Map<string, string>());
+  }, [parsedPoms]);
 
   return (
-    <main
-      style={{
-        fontFamily: 'Inter, system-ui, sans-serif',
-        margin: '2rem auto',
-        maxWidth: '960px',
-        lineHeight: 1.5,
-        color: '#1f2933',
-      }}
-    >
-      <header style={{ marginBottom: '2rem' }}>
-        <h1 style={{ marginBottom: '0.25rem' }}>Project pom overview</h1>
-        <p style={{ margin: 0, color: '#52606d' }}>
-          The application reads the pom defined by <code>--project=&lt;path&gt;</code> and shares it with the UI.
-        </p>
-      </header>
+    <Page>
+      <PageHeader>
+        <Title>Project pom overview</Title>
+        <Subtitle>
+          Pompot scans the current directory by default and can target another folder via <code>--parent=&lt;path&gt;</code>.
+        </Subtitle>
+      </PageHeader>
 
-      {status === 'loading' && <p>Loading parsed pom information…</p>}
+      {status === 'loading' && <StatusSection>Loading parsed pom information…</StatusSection>}
 
       {status === 'empty' && (
-        <section>
-          <p style={{ marginBottom: '0.5rem' }}>No pom information is available.</p>
+        <StatusSection>
+          <p style={{ margin: 0, marginBottom: '0.5rem' }}>No pom information is available.</p>
           <p style={{ margin: 0 }}>
-            Start the server with <code>--project=/path/to/project</code> so Pompot can parse the pom file.
+            Run Pompot from a directory containing pom files or provide <code>--parent=/path/to/projects</code>.
           </p>
-        </section>
+        </StatusSection>
       )}
 
       {status === 'error' && (
-        <section>
-          <p style={{ marginBottom: '0.5rem', color: '#b91d47' }}>Could not load the pom details.</p>
+        <StatusSection>
+          <p style={{ margin: 0, marginBottom: '0.5rem', color: '#b91d47' }}>Could not load the pom details.</p>
           <pre
             style={{
               background: '#fff5f5',
@@ -182,33 +391,56 @@ export const App: React.FC = () => {
           >
             {errorMessage}
           </pre>
-        </section>
+        </StatusSection>
       )}
 
-      {status === 'ready' && parsedPom && (
-        <section>
-          <div style={{ marginBottom: '1rem' }}>
-            <strong>Project path:</strong>{' '}
-            <code>{parsedPom.projectRoot}</code>
-          </div>
-          <pre
-            style={{
-              background: '#f5f7fa',
-              borderRadius: '0.75rem',
-              padding: '1.25rem',
-              overflowX: 'auto',
-              fontFamily: 'SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace',
-              fontSize: '0.95rem',
-              lineHeight: 1.6,
-              whiteSpace: 'pre',
-              margin: 0,
-            }}
-          >
-            {formattedPom}
-          </pre>
-        </section>
+      {status === 'ready' && parsedPoms && (
+        <>
+          <RootPath>
+            <MetadataLabel>Scanned root:</MetadataLabel> <code>{parsedPoms.scannedRoot}</code>
+          </RootPath>
+
+          <GroupsContainer>
+            {groupedEntries.map((group) => (
+              <GroupSection key={group.groupId}>
+                <GroupTitle>{group.groupId}</GroupTitle>
+                {group.entries.map((entry) => {
+                  const formattedPom = formattedEntries.get(entry.pomPath) ?? '';
+                  const displayGroup = normalizeCoordinatePart(entry.groupId, UNKNOWN_GROUP_LABEL);
+                  const displayArtifact = normalizeCoordinatePart(entry.artifactId, UNKNOWN_ARTIFACT_LABEL);
+
+                  return (
+                    <PomDetails key={entry.pomPath}>
+                      <PomSummary>
+                        <SummaryPath>{entry.relativePath}</SummaryPath>
+                        <SummaryMeta>
+                          {displayGroup} · {displayArtifact}
+                        </SummaryMeta>
+                        <SummaryIcon aria-hidden="true">▾</SummaryIcon>
+                      </PomSummary>
+                      <PomBody>
+                        <Metadata>
+                          <span>
+                            <MetadataLabel>File:</MetadataLabel> <code>{entry.pomPath}</code>
+                          </span>
+                          <span>
+                            <MetadataLabel>Coordinates:</MetadataLabel>{' '}
+                            <code>
+                              {displayGroup}:{displayArtifact}
+                            </code>
+                          </span>
+                        </Metadata>
+                        <CodeBlock>{formattedPom}</CodeBlock>
+                      </PomBody>
+                    </PomDetails>
+                  );
+                })}
+              </GroupSection>
+            ))}
+          </GroupsContainer>
+        </>
       )}
-    </main>
+    </Page>
   );
 };
 

@@ -1,13 +1,13 @@
 # PomFileParserTest
 
-Ensures the pom parser converts a pom file into a JSON tree.
+Ensures the pom parser converts a pom file into a JSON tree enriched with metadata.
 
 ## parsesPomIntoJsonTree
 
 ### Behavior
 - Loads the sample project under `src/test/resources/projects/simple`.
 - Parses the pom file using `PomFileParser`.
-- Verifies the resulting JSON node contains the expected `groupId` and `artifactId` values.
+- Verifies the resulting parse result contains the expected `groupId` and `artifactId` values and exposes them in the JSON tree.
 
 ## parsesPomWithPluginConfigurationWithoutRecursing
 

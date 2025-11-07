@@ -20,12 +20,14 @@ class PomFileParserTest {
         Path projectRoot = Path.of("src", "test", "resources", "projects", "simple");
         PomFileParser parser = new PomFileParser(new DefaultModelReader(), objectMapper);
 
-        Optional<JsonNode> parsedModel = parser.parse(projectRoot);
+        Optional<PomParseResult> parsedModel = parser.parse(projectRoot);
 
         assertTrue(parsedModel.isPresent(), "Expected pom.xml to be parsed");
-        JsonNode modelNode = parsedModel.orElseThrow();
-        assertEquals("com.example", modelNode.path("groupId").asText());
-        assertEquals("demo", modelNode.path("artifactId").asText());
+        PomParseResult result = parsedModel.orElseThrow();
+        assertEquals("com.example", result.groupId());
+        assertEquals("demo", result.artifactId());
+        assertEquals("com.example", result.model().path("groupId").asText());
+        assertEquals("demo", result.model().path("artifactId").asText());
     }
 
     @Test
@@ -33,10 +35,13 @@ class PomFileParserTest {
         Path projectRoot = Path.of("src", "test", "resources", "projects", "with-plugin-config");
         PomFileParser parser = new PomFileParser(new DefaultModelReader(), objectMapper);
 
-        Optional<JsonNode> parsedModel = parser.parse(projectRoot);
+        Optional<PomParseResult> parsedModel = parser.parse(projectRoot);
 
         assertTrue(parsedModel.isPresent(), "Expected pom with plugin configuration to be parsed");
-        JsonNode modelNode = parsedModel.orElseThrow();
+        PomParseResult result = parsedModel.orElseThrow();
+        assertEquals("com.example", result.groupId());
+        assertEquals("plugin-config-project", result.artifactId());
+        var modelNode = result.model();
 
         JsonNode pluginsNode = modelNode.path("build").path("plugins");
         assertTrue(pluginsNode.isArray(), () -> "Unexpected plugins node: " + pluginsNode.toPrettyString());

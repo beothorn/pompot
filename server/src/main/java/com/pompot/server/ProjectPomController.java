@@ -2,7 +2,7 @@ package com.pompot.server;
 
 import java.util.Optional;
 
-import com.pompot.server.parser.ParsedPom;
+import com.pompot.server.parser.ParsedPomCollection;
 import com.pompot.server.parser.ParsedPomRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -27,8 +27,8 @@ class ProjectPomController {
      * @return HTTP 200 with the parsed model or 404 when nothing is stored.
      */
     @GetMapping
-    ResponseEntity<ParsedPom> fetchParsedPom() {
-        Optional<ParsedPom> parsedPom = parsedPomRepository.fetch();
+    ResponseEntity<ParsedPomCollection> fetchParsedPom() {
+        Optional<ParsedPomCollection> parsedPom = parsedPomRepository.fetch();
         if (parsedPom.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
