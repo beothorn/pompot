@@ -8,7 +8,8 @@ Parses a Maven `pom.xml` file located inside a project directory and converts it
 - `ModelReader modelReader`
 - `ObjectMapper objectMapper`
 
-Allows injecting a custom reader (primarily for testing).
+Allows injecting a custom reader (primarily for testing). The mapper is defensively copied so
+later mutations from outside do not affect parser behavior.
 
 ## parse
 

@@ -8,6 +8,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import org.apache.maven.model.Build;
 import org.apache.maven.model.BuildBase;
@@ -39,8 +40,8 @@ public class PomFileParser {
      * @param objectMapper mapper used to convert the parsed model into JSON.
      */
     public PomFileParser(ModelReader modelReader, ObjectMapper objectMapper) {
-        this.modelReader = modelReader;
-        this.objectMapper = objectMapper;
+        this.modelReader = Objects.requireNonNull(modelReader, "modelReader");
+        this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper").copy();
     }
 
     /**
