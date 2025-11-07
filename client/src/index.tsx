@@ -126,11 +126,7 @@ const SummaryIcon = styled.span`
   margin-left: auto;
   color: #3a4b6a;
   font-size: 0.9rem;
-  transition: transform 0.2s ease;
-
-  ${PomDetails}[open] & {
-    transform: rotate(180deg);
-  }
+  transition: color 0.2s ease;
 `;
 
 const PomBody = styled.div`
@@ -187,14 +183,17 @@ const NodeChildren = styled.div`
 
 const FieldGroup = styled.label`
   display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 0.75rem;
+  flex-wrap: wrap;
 `;
 
 const FieldName = styled.span`
   font-weight: 600;
   color: #243b53;
   font-size: 0.9rem;
+  min-width: 120px;
 `;
 
 const FieldInput = styled.input`
@@ -356,12 +355,42 @@ type RenderOptions = {
   defaultOpen?: boolean;
 };
 
+type CollapsibleSectionProps = {
+  summary: React.ReactNode;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+};
+
+const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({ summary, children, defaultOpen }) => {
+  const [isOpen, setIsOpen] = React.useState(Boolean(defaultOpen));
+
+  const handleToggle = React.useCallback((event: React.SyntheticEvent<HTMLDetailsElement>) => {
+    setIsOpen(event.currentTarget.open);
+  }, []);
+
+  return (
+    <PomDetails open={isOpen} onToggle={handleToggle}>
+      <PomSummary aria-expanded={isOpen}>
+        {summary}
+        <SummaryIcon aria-hidden="true" data-testid="collapsible-icon">
+          {isOpen ? '▾' : '▸'}
+        </SummaryIcon>
+      </PomSummary>
+      <PomBody>{children}</PomBody>
+    </PomDetails>
+  );
+};
+
 const renderPomNode = (value: unknown, options: RenderOptions): React.ReactNode => {
   const { entryPath, segments, label, defaultOpen } = options;
   const pomPath = buildPomPath(entryPath, segments);
   const displayLabel = label ?? (segments.length ? segments[segments.length - 1] : 'value');
 
   if (isPrimitive(value)) {
+    if (value === null) {
+      return null;
+    }
+
     if (typeof value === 'boolean') {
       return (
         <CheckboxField key={pomPath}>
@@ -378,76 +407,68 @@ const renderPomNode = (value: unknown, options: RenderOptions): React.ReactNode 
     }
 
     const inputType = typeof value === 'number' ? 'number' : 'text';
-    const stringValue = value === null ? '' : String(value);
-    const placeholder = value === null ? 'null' : undefined;
+    const stringValue = String(value);
 
     return (
       <FieldGroup key={pomPath}>
         <FieldName>{displayLabel}</FieldName>
-        <FieldInput
-          type={inputType}
-          value={stringValue}
-          placeholder={placeholder}
-          readOnly
-          data-pompath={pomPath}
-        />
+        <FieldInput type={inputType} value={stringValue} readOnly data-pompath={pomPath} />
       </FieldGroup>
     );
   }
 
   if (Array.isArray(value)) {
-    const summary = createArraySummary(displayLabel, value.length);
+    const renderedChildren = value
+      .map((item, index) =>
+        renderPomNode(item, {
+          entryPath,
+          segments: [...segments, `[${index}]`],
+          label: createArrayItemLabel(displayLabel, index),
+        })
+      )
+      .filter((child): child is React.ReactNode => child !== null && child !== false && child !== undefined);
+    const summary = createArraySummary(displayLabel, renderedChildren.length);
+
     return (
-      <PomDetails key={pomPath} open={defaultOpen}>
-        <PomSummary>
-          <SummaryPath>{summary}</SummaryPath>
-          <SummaryIcon aria-hidden="true">▾</SummaryIcon>
-        </PomSummary>
-        <PomBody>
-          {value.length === 0 ? (
-            <EmptyState>Empty list</EmptyState>
-          ) : (
-            <NodeChildren>
-              {value.map((item, index) =>
-                renderPomNode(item, {
-                  entryPath,
-                  segments: [...segments, `[${index}]`],
-                  label: createArrayItemLabel(displayLabel, index),
-                })
-              )}
-            </NodeChildren>
-          )}
-        </PomBody>
-      </PomDetails>
+      <CollapsibleSection
+        key={pomPath}
+        defaultOpen={defaultOpen}
+        summary={<SummaryPath>{summary}</SummaryPath>}
+      >
+        {renderedChildren.length === 0 ? (
+          <EmptyState>Empty list</EmptyState>
+        ) : (
+          <NodeChildren>{renderedChildren}</NodeChildren>
+        )}
+      </CollapsibleSection>
     );
   }
 
   if (isRecord(value)) {
     const entries = Object.entries(value).sort((first, second) => first[0].localeCompare(second[0]));
     const summary = createObjectSummary(displayLabel, value);
+    const renderedChildren = entries
+      .map(([childKey, childValue]) =>
+        renderPomNode(childValue, {
+          entryPath,
+          segments: [...segments, childKey],
+          label: childKey,
+        })
+      )
+      .filter((child): child is React.ReactNode => child !== null && child !== false && child !== undefined);
 
     return (
-      <PomDetails key={pomPath} open={defaultOpen}>
-        <PomSummary>
-          <SummaryPath>{summary}</SummaryPath>
-          <SummaryIcon aria-hidden="true">▾</SummaryIcon>
-        </PomSummary>
-        <PomBody>
-          {entries.length === 0 ? (
-            <EmptyState>No fields</EmptyState>
-          ) : (
-            <NodeChildren>
-              {entries.map(([childKey, childValue]) =>
-                renderPomNode(childValue, {
-                  entryPath,
-                  segments: [...segments, childKey],
-                  label: childKey,
-                })
-              )}
-            </NodeChildren>
-          )}
-        </PomBody>
-      </PomDetails>
+      <CollapsibleSection
+        key={pomPath}
+        defaultOpen={defaultOpen}
+        summary={<SummaryPath>{summary}</SummaryPath>}
+      >
+        {renderedChildren.length === 0 ? (
+          <EmptyState>No fields</EmptyState>
+        ) : (
+          <NodeChildren>{renderedChildren}</NodeChildren>
+        )}
+      </CollapsibleSection>
     );
   }
 
@@ -593,29 +614,30 @@ export const App: React.FC = () => {
                   });
 
                   return (
-                    <PomDetails key={entry.pomPath}>
-                      <PomSummary>
-                        <SummaryPath>{entry.relativePath}</SummaryPath>
-                        <SummaryMeta>
-                          {displayGroup} · {displayArtifact}
-                        </SummaryMeta>
-                        <SummaryIcon aria-hidden="true">▾</SummaryIcon>
-                      </PomSummary>
-                      <PomBody>
-                        <Metadata>
-                          <span>
-                            <MetadataLabel>File:</MetadataLabel> <code>{entry.pomPath}</code>
-                          </span>
-                          <span>
-                            <MetadataLabel>Coordinates:</MetadataLabel>{' '}
-                            <code>
-                              {displayGroup}:{displayArtifact}
-                            </code>
-                          </span>
-                        </Metadata>
-                        <NodeChildren>{modelNode}</NodeChildren>
-                      </PomBody>
-                    </PomDetails>
+                    <CollapsibleSection
+                      key={entry.pomPath}
+                      summary={
+                        <>
+                          <SummaryPath>{entry.relativePath}</SummaryPath>
+                          <SummaryMeta>
+                            {displayGroup} · {displayArtifact}
+                          </SummaryMeta>
+                        </>
+                      }
+                    >
+                      <Metadata>
+                        <span>
+                          <MetadataLabel>File:</MetadataLabel> <code>{entry.pomPath}</code>
+                        </span>
+                        <span>
+                          <MetadataLabel>Coordinates:</MetadataLabel>{' '}
+                          <code>
+                            {displayGroup}:{displayArtifact}
+                          </code>
+                        </span>
+                      </Metadata>
+                      <NodeChildren>{modelNode}</NodeChildren>
+                    </CollapsibleSection>
                   );
                 })}
               </GroupSection>

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
 import { App } from './index';
@@ -53,6 +53,7 @@ describe('App', () => {
               groupId: 'org.example',
               artifactId: 'demo',
             },
+            childProjectUrlInheritAppendPath: null,
           },
         },
       ],
@@ -76,11 +77,21 @@ describe('App', () => {
     expect(rootPath).toBeInTheDocument();
 
     expect(await screen.findByRole('heading', { level: 2, name: 'org.example' })).toBeInTheDocument();
-    const summary = await screen.findByText(parsedResponse.entries[0].relativePath);
-    expect(summary).toBeInTheDocument();
+    const summaryPath = await screen.findByText(parsedResponse.entries[0].relativePath);
+    expect(summaryPath).toBeInTheDocument();
+
+    const summaryElement = summaryPath.closest('summary');
+    expect(summaryElement).not.toBeNull();
+
+    const icon = within(summaryElement as HTMLElement).getByTestId('collapsible-icon');
+    expect(icon).toHaveTextContent('▸');
 
     const user = userEvent.setup();
-    await user.click(summary);
+    await user.click(summaryPath);
+
+    await waitFor(() => {
+      expect(icon).toHaveTextContent('▾');
+    });
 
     const modelSummary = await screen.findByText('Model');
     expect(modelSummary).toBeInTheDocument();
@@ -95,6 +106,8 @@ describe('App', () => {
     const parentGroupIdInput = await screen.findByLabelText('groupId');
     expect(parentGroupIdInput).toHaveValue('org.example');
     expect(parentGroupIdInput).toHaveAttribute('data-pompath', '/projects/sample/pom.xml.parent.groupId');
+
+    expect(screen.queryByLabelText('childProjectUrlInheritAppendPath')).not.toBeInTheDocument();
 
     expect(response.json).toHaveBeenCalledTimes(1);
   });
