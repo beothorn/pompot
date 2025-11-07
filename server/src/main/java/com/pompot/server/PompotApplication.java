@@ -9,6 +9,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 /**
  * Entry point for both the CLI and UI modes of the application, handling argument parsing and bootstrapping Spring.
+ * UI mode configures the embedded server to listen on {@link #DEFAULT_PORT} so the HTTP controller becomes reachable.
  */
 @SpringBootApplication
 public class PompotApplication {
@@ -17,6 +18,7 @@ public class PompotApplication {
 
     /**
      * Launches the application respecting the selected mode.
+     * CLI mode prints the product banner and exits, while UI mode starts Spring Boot on {@link #DEFAULT_PORT}.
      * @param args command-line arguments passed to the JVM.
      */
     public static void main(String[] args) {
@@ -33,7 +35,7 @@ public class PompotApplication {
     }
 
     /**
-     * In case of cli, for now we just print "about".
+     * Prints the CLI banner with the resolved version so headless users receive the same product information.
      */
     private static void printAbout() {
         String detectedVersion = Optional.ofNullable(PompotApplication.class.getPackage().getImplementationVersion())
