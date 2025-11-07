@@ -75,4 +75,21 @@ class PomFileParserTest {
         assertEquals("linkOnly", reportingChild.path("name").asText(), reportingConfiguration::toPrettyString);
         assertEquals("false", reportingChild.path("value").asText(), reportingConfiguration::toPrettyString);
     }
+
+    @Test
+    void includesModuleListWhenParentPomDeclaresModules() {
+        Path projectRoot = Path.of("src", "test", "resources", "projects", "with-modules", "parent");
+        PomFileParser parser = new PomFileParser(new DefaultModelReader(), objectMapper);
+
+        Optional<PomParseResult> parsedModel = parser.parse(projectRoot);
+
+        assertTrue(parsedModel.isPresent(), "Expected parent pom with modules to be parsed");
+        PomParseResult result = parsedModel.orElseThrow();
+        JsonNode modulesNode = result.model().path("modules");
+
+        assertTrue(modulesNode.isArray(), () -> "Modules node should be an array: " + modulesNode.toPrettyString());
+        assertEquals(2, modulesNode.size(), () -> "Unexpected modules: " + modulesNode.toPrettyString());
+        assertEquals("module-a", modulesNode.get(0).asText());
+        assertEquals("module-b", modulesNode.get(1).asText());
+    }
 }

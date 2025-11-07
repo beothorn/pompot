@@ -125,9 +125,87 @@ describe('App', () => {
     expect(parentGroupIdInput).toHaveAttribute('data-pompath', '/projects/sample/pom.xml.parent.groupId');
 
     expect(screen.queryByLabelText('childProjectUrlInheritAppendPath')).not.toBeInTheDocument();
-    expect(screen.queryByText(/modules/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Modules ·/i)).not.toBeInTheDocument();
 
     expect(response.json).toHaveBeenCalledTimes(1);
+  });
+
+  it('nests module entries inside the parent pom details', async () => {
+    const parsedResponse = {
+      scannedRoot: '/projects',
+      entries: [
+        {
+          pomPath: '/projects/sample/pom.xml',
+          relativePath: 'sample/pom.xml',
+          groupId: 'org.example',
+          artifactId: 'demo-parent',
+          model: {
+            modelVersion: '4.0.0',
+            packaging: 'pom',
+            modules: ['module-a', 'module-b'],
+          },
+        },
+        {
+          pomPath: '/projects/sample/module-a/pom.xml',
+          relativePath: 'sample/module-a/pom.xml',
+          groupId: 'org.example',
+          artifactId: 'module-a',
+          model: {
+            modelVersion: '4.0.0',
+            parent: {
+              groupId: 'org.example',
+              artifactId: 'demo-parent',
+            },
+          },
+        },
+        {
+          pomPath: '/projects/sample/module-b/pom.xml',
+          relativePath: 'sample/module-b/pom.xml',
+          groupId: 'org.example',
+          artifactId: 'module-b',
+          model: {
+            modelVersion: '4.0.0',
+            parent: {
+              groupId: 'org.example',
+              artifactId: 'demo-parent',
+            },
+          },
+        },
+      ],
+    };
+    const response: MockResponse = {
+      status: 200,
+      ok: true,
+      json: jest.fn().mockResolvedValue(parsedResponse),
+    };
+    const fetchMock = jest.fn<Promise<Response>, Parameters<typeof fetch>>(() =>
+      Promise.resolve(response as Response)
+    );
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    render(<App />);
+
+    const parentSummary = await screen.findByText(parsedResponse.entries[0].relativePath);
+    expect(parentSummary).toBeInTheDocument();
+
+    const user = userEvent.setup();
+    await user.click(parentSummary);
+
+    const modulesSummary = await screen.findByText('Modules · 2 items');
+    const modulesDetails = modulesSummary.closest('details');
+    expect(modulesDetails).not.toBeNull();
+
+    const modulesWithin = within(modulesDetails as HTMLElement);
+    const moduleASummary = modulesWithin.getByText('sample/module-a/pom.xml');
+    expect(moduleASummary).toBeInTheDocument();
+    await user.click(moduleASummary);
+
+    const moduleAMetadata = within(moduleASummary.closest('details') as HTMLElement);
+    const moduleAPomPath = await moduleAMetadata.findByLabelText('pomFile');
+    expect(moduleAPomPath).toHaveValue('/projects/sample/module-a/pom.xml');
+
+    const moduleBSummary = modulesWithin.getByText('sample/module-b/pom.xml');
+    expect(moduleBSummary).toBeInTheDocument();
   });
 
   it('reports an error when the server request fails', async () => {

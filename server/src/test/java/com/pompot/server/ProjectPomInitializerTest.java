@@ -53,7 +53,7 @@ class ProjectPomInitializerTest {
 
         Optional<ParsedPomCollection> storedPom = parsedPomRepository.fetch();
         assertTrue(storedPom.isPresent(), "Expected parsed poms to be stored");
-        assertEquals(2, storedPom.get().entries().size(), "Expected both sample projects to be parsed");
+        assertEquals(5, storedPom.get().entries().size(), "Expected all sample projects to be parsed");
     }
 
     @Test
@@ -84,7 +84,7 @@ class ProjectPomInitializerTest {
 
         Optional<ParsedPomCollection> storedPom = parsedPomRepository.fetch();
         assertTrue(storedPom.isPresent(), "Expected parsed poms when using a tilde path");
-        assertEquals(2, storedPom.get().entries().size(), "Expected both sample projects to be parsed from the tilde path");
+        assertEquals(5, storedPom.get().entries().size(), "Expected all sample projects to be parsed from the tilde path");
     }
 
     private Path copyProjectsToHome(Path sourceRoot) throws IOException {

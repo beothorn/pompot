@@ -17,6 +17,23 @@ type ParsedPomResponse = {
 
 type LoadState = 'loading' | 'ready' | 'empty' | 'error';
 
+type ModuleReference = {
+  name: string;
+  normalizedAbsolutePath: string;
+  normalizedRelativePath: string | null;
+  targetNormalizedPath: string | null;
+};
+
+type EnrichedParsedPomEntry = ParsedPomEntry & {
+  normalizedAbsolutePath: string;
+  modules: ModuleReference[];
+};
+
+type GroupedPomEntries = {
+  groupId: string;
+  entries: EnrichedParsedPomEntry[];
+};
+
 const isRecord = (value: unknown): value is Record<string, unknown> => {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 };
@@ -261,6 +278,82 @@ const deriveProjectDirectory = (pomPath: string): string => {
   }
 
   return normalized.slice(0, lastSlashIndex);
+};
+
+const normalizePathForComparison = (value: string | null | undefined): string => {
+  if (!value) {
+    return '.';
+  }
+
+  const replaced = value.replace(/\\/g, '/');
+  const driveMatch = replaced.match(/^[A-Za-z]:/);
+  let prefix = '';
+  let pathBody = replaced;
+
+  if (driveMatch) {
+    prefix = driveMatch[0];
+    pathBody = replaced.slice(prefix.length);
+    pathBody = pathBody.replace(/^\/+/, '');
+  } else if (pathBody.startsWith('/')) {
+    prefix = '/';
+    pathBody = pathBody.replace(/^\/+/, '');
+  }
+
+  const segments = pathBody.split('/');
+  const stack: string[] = [];
+
+  segments.forEach((segment) => {
+    if (!segment || segment === '.') {
+      return;
+    }
+
+    if (segment === '..') {
+      if (stack.length > 0 && stack[stack.length - 1] !== '..') {
+        stack.pop();
+      } else if (!prefix) {
+        stack.push('..');
+      }
+      return;
+    }
+
+    stack.push(segment);
+  });
+
+  if (prefix === '/') {
+    return stack.length ? `/${stack.join('/')}` : '/';
+  }
+
+  if (driveMatch) {
+    return stack.length ? `${prefix}/${stack.join('/')}` : prefix;
+  }
+
+  const normalized = stack.join('/');
+  return normalized || '.';
+};
+
+const combinePath = (base: string | null | undefined, ...segments: string[]): string => {
+  const sanitizedBase = (base ?? '').replace(/\\/g, '/');
+  const sanitizedSegments = segments
+    .filter((segment) => typeof segment === 'string' && segment.length > 0)
+    .map((segment) => segment.replace(/\\/g, '/'));
+  const parts = [sanitizedBase, ...sanitizedSegments].filter((part) => part.length > 0);
+  const raw = parts.join('/');
+  return raw.length > 0 ? raw : sanitizedBase || '';
+};
+
+const extractModuleNames = (model: unknown): string[] => {
+  if (!isRecord(model)) {
+    return [];
+  }
+
+  const modules = model.modules;
+  if (!Array.isArray(modules)) {
+    return [];
+  }
+
+  return modules
+    .filter((candidate): candidate is string => typeof candidate === 'string' && candidate.trim().length > 0)
+    .map((candidate) => candidate.trim());
 };
 
 const summarizeString = (value: unknown): string | null => {
@@ -525,13 +618,80 @@ export const App: React.FC = () => {
     };
   }, []);
 
-  const groupedEntries = React.useMemo(() => {
+  const memoizedEntries = React.useMemo(() => {
     if (!parsedPoms) {
-      return [] as Array<{ groupId: string; entries: ParsedPomEntry[] }>;
+      return {
+        groups: [] as GroupedPomEntries[],
+        entryLookup: new Map<string, EnrichedParsedPomEntry>(),
+      };
     }
 
-    const groups = new Map<string, ParsedPomEntry[]>();
+    const entryByAbsolutePath = new Map<string, ParsedPomEntry>();
+    const entryByRelativePath = new Map<string, ParsedPomEntry>();
     parsedPoms.entries.forEach((entry) => {
+      entryByAbsolutePath.set(normalizePathForComparison(entry.pomPath), entry);
+      entryByRelativePath.set(normalizePathForComparison(entry.relativePath), entry);
+    });
+
+    const modulesByEntry = new Map<string, ModuleReference[]>();
+    parsedPoms.entries.forEach((entry) => {
+      const moduleNames = extractModuleNames(entry.model);
+      if (!moduleNames.length) {
+        return;
+      }
+
+      const normalizedAbsolutePath = normalizePathForComparison(entry.pomPath);
+      const absoluteProjectDirectory = deriveProjectDirectory(entry.pomPath);
+      const relativeProjectDirectory = deriveProjectDirectory(entry.relativePath);
+
+      const references = moduleNames.map((moduleName) => {
+        const absoluteCandidate = normalizePathForComparison(
+          combinePath(absoluteProjectDirectory, moduleName, 'pom.xml')
+        );
+        const relativeCandidate = normalizePathForComparison(
+          combinePath(relativeProjectDirectory, moduleName, 'pom.xml')
+        );
+
+        const absoluteMatch = entryByAbsolutePath.get(absoluteCandidate);
+        let targetNormalizedPath: string | null = null;
+
+        if (absoluteMatch) {
+          targetNormalizedPath = normalizePathForComparison(absoluteMatch.pomPath);
+        } else {
+          const relativeMatch = entryByRelativePath.get(relativeCandidate);
+          if (relativeMatch) {
+            targetNormalizedPath = normalizePathForComparison(relativeMatch.pomPath);
+          }
+        }
+
+        return {
+          name: moduleName,
+          normalizedAbsolutePath: absoluteCandidate,
+          normalizedRelativePath: relativeCandidate,
+          targetNormalizedPath,
+        } satisfies ModuleReference;
+      });
+
+      modulesByEntry.set(normalizedAbsolutePath, references);
+    });
+
+    const enrichedEntries = parsedPoms.entries.map((entry) => {
+      const normalizedAbsolutePath = normalizePathForComparison(entry.pomPath);
+      const modules = modulesByEntry.get(normalizedAbsolutePath) ?? [];
+      return {
+        ...entry,
+        normalizedAbsolutePath,
+        modules,
+      } satisfies EnrichedParsedPomEntry;
+    });
+
+    const entryLookup = new Map<string, EnrichedParsedPomEntry>();
+    enrichedEntries.forEach((entry) => {
+      entryLookup.set(entry.normalizedAbsolutePath, entry);
+    });
+
+    const groups = new Map<string, EnrichedParsedPomEntry[]>();
+    enrichedEntries.forEach((entry) => {
       const key = normalizeCoordinatePart(entry.groupId, UNKNOWN_GROUP_LABEL);
       const existing = groups.get(key);
       if (existing) {
@@ -541,7 +701,7 @@ export const App: React.FC = () => {
       }
     });
 
-    return Array.from(groups.entries())
+    const sortedGroups = Array.from(groups.entries())
       .map(([groupId, entries]) => ({
         groupId,
         entries: entries
@@ -549,7 +709,139 @@ export const App: React.FC = () => {
           .sort((first, second) => first.relativePath.localeCompare(second.relativePath)),
       }))
       .sort((first, second) => first.groupId.localeCompare(second.groupId));
+
+    return { groups: sortedGroups, entryLookup };
   }, [parsedPoms]);
+
+  const groupedEntries = memoizedEntries.groups;
+  const entryLookup = memoizedEntries.entryLookup;
+
+  type RenderEntryOptions = {
+    summary?: React.ReactNode;
+    visited?: Set<string>;
+    key?: string;
+  };
+
+  const renderEntryCollapsible = (
+    entry: EnrichedParsedPomEntry,
+    options?: RenderEntryOptions
+  ): React.ReactElement | null => {
+    const normalizedPath = entry.normalizedAbsolutePath;
+    const visited = options?.visited ?? new Set<string>();
+    if (visited.has(normalizedPath)) {
+      return null;
+    }
+
+    const nextVisited = new Set(visited);
+    nextVisited.add(normalizedPath);
+
+    const displayGroup = normalizeCoordinatePart(entry.groupId, UNKNOWN_GROUP_LABEL);
+    const displayArtifact = normalizeCoordinatePart(entry.artifactId, UNKNOWN_ARTIFACT_LABEL);
+    const projectDirectory = deriveProjectDirectory(entry.pomPath);
+
+    const metadataNode = renderPomNode(
+      {
+        pomFile: entry.pomPath,
+        projectDirectory,
+        coordinates: `${displayGroup}:${displayArtifact}`,
+      },
+      {
+        entryPath: entry.pomPath,
+        segments: ['__metadata'],
+        label: 'Pom File',
+        defaultOpen: true,
+      }
+    );
+
+    const moduleNodes = entry.modules
+      .map((moduleReference, index) => {
+        const moduleEntry = moduleReference.targetNormalizedPath
+          ? entryLookup.get(moduleReference.targetNormalizedPath)
+          : undefined;
+        const moduleKey = `${normalizedPath}::module::${index}`;
+
+        if (moduleEntry) {
+          const moduleSummaryPath = moduleEntry.relativePath || moduleReference.name;
+          const moduleSummary = (
+            <>
+              <SummaryPath>{moduleSummaryPath}</SummaryPath>
+              <SummaryMeta>
+                {normalizeCoordinatePart(moduleEntry.groupId, UNKNOWN_GROUP_LABEL)} ·{' '}
+                {normalizeCoordinatePart(moduleEntry.artifactId, UNKNOWN_ARTIFACT_LABEL)}
+              </SummaryMeta>
+            </>
+          );
+
+          return renderEntryCollapsible(moduleEntry, {
+            summary: moduleSummary,
+            visited: nextVisited,
+            key: moduleKey,
+          });
+        }
+
+        const fallbackNode = renderPomNode(
+          {
+            module: moduleReference.name,
+            expectedPom: moduleReference.normalizedRelativePath ?? moduleReference.normalizedAbsolutePath,
+          },
+          {
+            entryPath: entry.pomPath,
+            segments: ['modules', `[${index}]`],
+            label: moduleReference.name,
+            defaultOpen: true,
+          }
+        );
+
+        if (!fallbackNode) {
+          return null;
+        }
+
+        return <React.Fragment key={moduleKey}>{fallbackNode}</React.Fragment>;
+      })
+      .filter((node): node is React.ReactElement => node !== null);
+
+    const modulesSection = moduleNodes.length
+      ? (
+          <CollapsibleSection
+            key={`${normalizedPath}::modules`}
+            defaultOpen
+            summary={<SummaryPath>{`Modules · ${moduleNodes.length} ${moduleNodes.length === 1 ? 'item' : 'items'}`}</SummaryPath>}
+          >
+            <NodeChildren>{moduleNodes}</NodeChildren>
+          </CollapsibleSection>
+        )
+      : null;
+
+    const modelNode = renderPomNode(entry.model, {
+      entryPath: entry.pomPath,
+      segments: [],
+      label: 'Model',
+      defaultOpen: true,
+    });
+
+    const renderedSections = [metadataNode, modulesSection, modelNode].filter(
+      (section): section is React.ReactNode => Boolean(section)
+    );
+
+    if (!renderedSections.length) {
+      return null;
+    }
+
+    const summary = options?.summary ?? (
+      <>
+        <SummaryPath>{entry.relativePath}</SummaryPath>
+        <SummaryMeta>
+          {displayGroup} · {displayArtifact}
+        </SummaryMeta>
+      </>
+    );
+
+    return (
+      <CollapsibleSection key={options?.key ?? entry.pomPath} summary={summary}>
+        <NodeChildren>{renderedSections}</NodeChildren>
+      </CollapsibleSection>
+    );
+  };
 
   return (
     <Page>
@@ -600,49 +892,9 @@ export const App: React.FC = () => {
             {groupedEntries.map((group) => (
               <GroupSection key={group.groupId}>
                 <GroupTitle>{group.groupId}</GroupTitle>
-                {group.entries.map((entry) => {
-                  const displayGroup = normalizeCoordinatePart(entry.groupId, UNKNOWN_GROUP_LABEL);
-                  const displayArtifact = normalizeCoordinatePart(entry.artifactId, UNKNOWN_ARTIFACT_LABEL);
-                  const projectDirectory = deriveProjectDirectory(entry.pomPath);
-                  const metadataNode = renderPomNode(
-                    {
-                      pomFile: entry.pomPath,
-                      projectDirectory,
-                      coordinates: `${displayGroup}:${displayArtifact}`,
-                    },
-                    {
-                      entryPath: entry.pomPath,
-                      segments: ['__metadata'],
-                      label: 'Pom File',
-                      defaultOpen: true,
-                    }
-                  );
-                  const modelNode = renderPomNode(entry.model, {
-                    entryPath: entry.pomPath,
-                    segments: [],
-                    label: 'Model',
-                    defaultOpen: true,
-                  });
-                  const renderedSections = [metadataNode, modelNode].filter(
-                    (child): child is React.ReactNode => child !== null && child !== false && child !== undefined
-                  );
-
-                  return (
-                    <CollapsibleSection
-                      key={entry.pomPath}
-                      summary={
-                        <>
-                          <SummaryPath>{entry.relativePath}</SummaryPath>
-                          <SummaryMeta>
-                            {displayGroup} · {displayArtifact}
-                          </SummaryMeta>
-                        </>
-                      }
-                    >
-                      <NodeChildren>{renderedSections}</NodeChildren>
-                    </CollapsibleSection>
-                  );
-                })}
+                {group.entries
+                  .map((entry) => renderEntryCollapsible(entry, { key: entry.pomPath }))
+                  .filter((node): node is React.ReactElement => node !== null)}
               </GroupSection>
             ))}
           </GroupsContainer>
