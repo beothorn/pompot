@@ -54,6 +54,7 @@ describe('App', () => {
               artifactId: 'demo',
             },
             childProjectUrlInheritAppendPath: null,
+            modules: [],
           },
         },
       ],
@@ -93,6 +94,22 @@ describe('App', () => {
       expect(icon).toHaveTextContent('▾');
     });
 
+    const metadataSummary = await screen.findByText('Pom File');
+    expect(metadataSummary).toBeInTheDocument();
+
+    const metadataDetails = metadataSummary.closest('details');
+    expect(metadataDetails).not.toBeNull();
+
+    const metadataWithin = within(metadataDetails as HTMLElement);
+    const pomFileInput = metadataWithin.getByLabelText('pomFile');
+    expect(pomFileInput).toHaveValue(parsedResponse.entries[0].pomPath);
+
+    const projectDirectoryInput = metadataWithin.getByLabelText('projectDirectory');
+    expect(projectDirectoryInput).toHaveValue('/projects/sample');
+
+    const coordinatesInput = metadataWithin.getByLabelText('coordinates');
+    expect(coordinatesInput).toHaveValue('org.example:demo');
+
     const modelSummary = await screen.findByText('Model');
     expect(modelSummary).toBeInTheDocument();
 
@@ -108,6 +125,7 @@ describe('App', () => {
     expect(parentGroupIdInput).toHaveAttribute('data-pompath', '/projects/sample/pom.xml.parent.groupId');
 
     expect(screen.queryByLabelText('childProjectUrlInheritAppendPath')).not.toBeInTheDocument();
+    expect(screen.queryByText(/modules/i)).not.toBeInTheDocument();
 
     expect(response.json).toHaveBeenCalledTimes(1);
   });
