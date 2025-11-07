@@ -54,12 +54,12 @@ On the tickets folder, give your task a number and fill the template:
 # What changed
 ...
 # Required Checklist !!!!
-[] Test coverage is higher than 80% by running ./run-tests.sh
-[] No compile warnings or errors added.
-[] Security issues checked, listed or mitigated. 
-[] Spotbugs ran, no new issues
-[] Feature is described on the wiki
-[] Double check opportunities to simplify code (less complexity, less code) , refactor and leave it simpler than you found. 
+[] Test coverage is higher than 80% by running ./run-tests.sh  
+[] No compile warnings or errors added.  
+[] Security issues checked, listed or mitigated.  
+[] Spotbugs ran, no new issues  
+[] Feature is described on the wiki  
+[] Double check opportunities to simplify code (less complexity, less code) , refactor and leave it simpler than you found.  
 # Notes
 ```
 
