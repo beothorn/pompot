@@ -91,7 +91,7 @@ const PomDetails = styled.details`
 
 const PomSummary = styled.summary`
   cursor: pointer;
-  padding: 1rem 1.25rem;
+  padding: 0.75rem 1rem;
   display: flex;
   align-items: center;
   gap: 1.25rem;
@@ -130,29 +130,12 @@ const SummaryIcon = styled.span`
 `;
 
 const PomBody = styled.div`
-  padding: 1rem 1.25rem 1.5rem;
+  padding: 0.75rem 1rem 1rem;
   border-top: 1px solid #d9e2ec;
   background: #ffffff;
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
-`;
-
-const Metadata = styled.div`
-  margin-bottom: 1rem;
-  display: grid;
-  gap: 0.35rem;
-  color: #3a4b6a;
-  font-size: 0.95rem;
-
-  code {
-    font-family: 'SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace';
-    background: #f0f4f8;
-    border-radius: 0.5rem;
-    padding: 0.1rem 0.4rem;
-    color: #243b53;
-    font-size: 0.9rem;
-  }
 `;
 
 const MetadataLabel = styled.span`
@@ -184,9 +167,10 @@ const NodeChildren = styled.div`
 const FieldGroup = styled.label`
   display: flex;
   flex-direction: row;
-  align-items: baseline;
+  align-items: flex-start;
   gap: 0.75rem;
   flex-wrap: wrap;
+  width: 100%;
 `;
 
 const FieldName = styled.span`
@@ -194,6 +178,7 @@ const FieldName = styled.span`
   color: #243b53;
   font-size: 0.9rem;
   min-width: 120px;
+  flex: 0 0 auto;
 `;
 
 const FieldInput = styled.input`
@@ -204,6 +189,9 @@ const FieldInput = styled.input`
   color: #1f2933;
   background: #f8fafc;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  flex: 1 1 100%;
+  min-width: 0;
+  width: 100%;
 
   &:focus {
     outline: none;
@@ -227,12 +215,6 @@ const CheckboxInput = styled.input`
 const CheckboxLabel = styled.span`
   font-size: 0.95rem;
   color: #1f2933;
-`;
-
-const EmptyState = styled.div`
-  font-size: 0.9rem;
-  color: #52606d;
-  font-style: italic;
 `;
 
 const UNKNOWN_GROUP_LABEL = '(no group id)';
@@ -264,6 +246,21 @@ const buildPomPath = (base: string, segments: PomPathSegment[]): string => {
 
     return `${path}.${segment}`;
   }, base);
+};
+
+const deriveProjectDirectory = (pomPath: string): string => {
+  const normalized = pomPath.replace(/\\/g, '/');
+  const lastSlashIndex = normalized.lastIndexOf('/');
+
+  if (lastSlashIndex === -1) {
+    return '.';
+  }
+
+  if (lastSlashIndex === 0) {
+    return '/';
+  }
+
+  return normalized.slice(0, lastSlashIndex);
 };
 
 const summarizeString = (value: unknown): string | null => {
@@ -427,6 +424,10 @@ const renderPomNode = (value: unknown, options: RenderOptions): React.ReactNode 
         })
       )
       .filter((child): child is React.ReactNode => child !== null && child !== false && child !== undefined);
+    if (renderedChildren.length === 0) {
+      return null;
+    }
+
     const summary = createArraySummary(displayLabel, renderedChildren.length);
 
     return (
@@ -435,17 +436,13 @@ const renderPomNode = (value: unknown, options: RenderOptions): React.ReactNode 
         defaultOpen={defaultOpen}
         summary={<SummaryPath>{summary}</SummaryPath>}
       >
-        {renderedChildren.length === 0 ? (
-          <EmptyState>Empty list</EmptyState>
-        ) : (
-          <NodeChildren>{renderedChildren}</NodeChildren>
-        )}
+        <NodeChildren>{renderedChildren}</NodeChildren>
       </CollapsibleSection>
     );
   }
 
   if (isRecord(value)) {
-    const entries = Object.entries(value).sort((first, second) => first[0].localeCompare(second[0]));
+    const entries = Object.entries(value);
     const summary = createObjectSummary(displayLabel, value);
     const renderedChildren = entries
       .map(([childKey, childValue]) =>
@@ -457,17 +454,17 @@ const renderPomNode = (value: unknown, options: RenderOptions): React.ReactNode 
       )
       .filter((child): child is React.ReactNode => child !== null && child !== false && child !== undefined);
 
+    if (renderedChildren.length === 0) {
+      return null;
+    }
+
     return (
       <CollapsibleSection
         key={pomPath}
         defaultOpen={defaultOpen}
         summary={<SummaryPath>{summary}</SummaryPath>}
       >
-        {renderedChildren.length === 0 ? (
-          <EmptyState>No fields</EmptyState>
-        ) : (
-          <NodeChildren>{renderedChildren}</NodeChildren>
-        )}
+        <NodeChildren>{renderedChildren}</NodeChildren>
       </CollapsibleSection>
     );
   }
@@ -606,12 +603,29 @@ export const App: React.FC = () => {
                 {group.entries.map((entry) => {
                   const displayGroup = normalizeCoordinatePart(entry.groupId, UNKNOWN_GROUP_LABEL);
                   const displayArtifact = normalizeCoordinatePart(entry.artifactId, UNKNOWN_ARTIFACT_LABEL);
+                  const projectDirectory = deriveProjectDirectory(entry.pomPath);
+                  const metadataNode = renderPomNode(
+                    {
+                      pomFile: entry.pomPath,
+                      projectDirectory,
+                      coordinates: `${displayGroup}:${displayArtifact}`,
+                    },
+                    {
+                      entryPath: entry.pomPath,
+                      segments: ['__metadata'],
+                      label: 'Pom File',
+                      defaultOpen: true,
+                    }
+                  );
                   const modelNode = renderPomNode(entry.model, {
                     entryPath: entry.pomPath,
                     segments: [],
                     label: 'Model',
                     defaultOpen: true,
                   });
+                  const renderedSections = [metadataNode, modelNode].filter(
+                    (child): child is React.ReactNode => child !== null && child !== false && child !== undefined
+                  );
 
                   return (
                     <CollapsibleSection
@@ -625,18 +639,7 @@ export const App: React.FC = () => {
                         </>
                       }
                     >
-                      <Metadata>
-                        <span>
-                          <MetadataLabel>File:</MetadataLabel> <code>{entry.pomPath}</code>
-                        </span>
-                        <span>
-                          <MetadataLabel>Coordinates:</MetadataLabel>{' '}
-                          <code>
-                            {displayGroup}:{displayArtifact}
-                          </code>
-                        </span>
-                      </Metadata>
-                      <NodeChildren>{modelNode}</NodeChildren>
+                      <NodeChildren>{renderedSections}</NodeChildren>
                     </CollapsibleSection>
                   );
                 })}
