@@ -18,6 +18,8 @@ Loads every `pom.xml` file found under the working directory (or `--parent` argu
 scanRoot = resolve --parent argument or working directory
 if scanRoot invalid:
   clear repository and return
+if --parent starts with '~':
+  expand it to the user home directory before resolving the path
 pomFiles = recursively list pom.xml under scanRoot
   ignore entries without a valid file name
 if no pomFiles:

@@ -144,7 +144,7 @@ class ProjectPomInitializer implements ApplicationRunner {
             }
 
             try {
-                Path provided = Path.of(candidate).toAbsolutePath().normalize();
+                Path provided = Path.of(expandLeadingTilde(candidate)).toAbsolutePath().normalize();
                 if (!Files.isDirectory(provided)) {
                     LOGGER.error("Provided parent path is not a directory: {}", provided);
                     return null;
@@ -163,6 +163,33 @@ class ProjectPomInitializer implements ApplicationRunner {
         }
 
         return workingDirectory;
+    }
+
+    private String expandLeadingTilde(String candidate) {
+        if (candidate == null) {
+            return null;
+        }
+
+        String trimmed = candidate.trim();
+        if (!trimmed.startsWith("~")) {
+            return trimmed;
+        }
+
+        String userHome = System.getProperty("user.home");
+        if (userHome == null || userHome.isBlank()) {
+            return trimmed;
+        }
+
+        if (trimmed.length() == 1) {
+            return userHome;
+        }
+
+        char next = trimmed.charAt(1);
+        if (next == '/' || next == '\\') {
+            return userHome + trimmed.substring(1);
+        }
+
+        return trimmed;
     }
 
     private String deriveRelativePath(Path root, Path pomFile) {
