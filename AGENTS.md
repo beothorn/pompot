@@ -20,6 +20,11 @@ The features (planned) are:
 - Tests settings.xml , connections and correctness of poms  
 - Have a command line mode and an ui mode (serving a browser)  
 
+# Redundancy directive
+
+We have the same information repeated across: comments (javadocs, jsdocs), documentation(wiki, tickets), tests and commit messages.  
+This way we remove ambiguity by having many sources with different format describing the same thing in different ways.  
+
 # Stack  
 
 The project has these folders:
@@ -57,7 +62,7 @@ On the tickets folder, give your task a number and fill the template:
 [] Test coverage is higher than 80% by running ./run-tests.sh  
 [] No compile warnings or errors added.  
 [] Security issues checked, listed or mitigated.  
-[] Spotbugs ran, no new issues  
+[] Build script with static analysis ran, no new issues  
 [] Feature is described on the wiki  
 [] Double check opportunities to simplify code (less complexity, less code) , refactor and leave it simpler than you found.  
 # Notes
