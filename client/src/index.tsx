@@ -21,76 +21,6 @@ const isRecord = (value: unknown): value is Record<string, unknown> => {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 };
 
-const isScalar = (value: unknown): boolean => {
-  return (
-    typeof value === 'string' ||
-    typeof value === 'number' ||
-    typeof value === 'boolean' ||
-    value === null
-  );
-};
-
-const formatScalar = (value: unknown): string => {
-  if (value === null) {
-    return 'null';
-  }
-
-  if (typeof value === 'string') {
-    return `'${value}'`;
-  }
-
-  if (typeof value === 'number' || typeof value === 'boolean') {
-    return String(value);
-  }
-
-  return String(value);
-};
-
-const formatValue = (value: unknown, indent = 0): string => {
-  const spacing = ' '.repeat(indent);
-
-  if (isScalar(value)) {
-    return `${spacing}${formatScalar(value)}`;
-  }
-
-  if (Array.isArray(value)) {
-    if (value.length === 0) {
-      return `${spacing}[]`;
-    }
-
-    return value
-      .map((item) => {
-        if (isScalar(item)) {
-          return `${spacing}- ${formatScalar(item)}`;
-        }
-
-        const formattedItem = formatValue(item, indent + 2);
-        return `${spacing}-\n${formattedItem}`;
-      })
-      .join('\n');
-  }
-
-  if (isRecord(value)) {
-    const entries = Object.entries(value);
-    if (entries.length === 0) {
-      return `${spacing}{}`;
-    }
-
-    return entries
-      .map(([key, entryValue]) => {
-        if (isScalar(entryValue)) {
-          return `${spacing}${key}: ${formatScalar(entryValue)}`;
-        }
-
-        const formattedEntry = formatValue(entryValue, indent + 2);
-        return `${spacing}${key}:\n${formattedEntry}`;
-      })
-      .join('\n');
-  }
-
-  return `${spacing}${String(value)}`;
-};
-
 const Page = styled.main`
   font-family: 'Inter, system-ui, sans-serif';
   margin: 2rem auto 3rem;
@@ -207,6 +137,9 @@ const PomBody = styled.div`
   padding: 1rem 1.25rem 1.5rem;
   border-top: 1px solid #d9e2ec;
   background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
 `;
 
 const Metadata = styled.div`
@@ -231,18 +164,6 @@ const MetadataLabel = styled.span`
   color: #1f2933;
 `;
 
-const CodeBlock = styled.pre`
-  background: #10172a;
-  color: #e5e9f0;
-  border-radius: 0.75rem;
-  padding: 1.25rem;
-  overflow-x: auto;
-  font-family: 'SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace';
-  font-size: 0.95rem;
-  line-height: 1.6;
-  margin: 0;
-`;
-
 const RootPath = styled.div`
   margin-bottom: 1.5rem;
   font-size: 0.95rem;
@@ -258,6 +179,63 @@ const RootPath = styled.div`
   }
 `;
 
+const NodeChildren = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+`;
+
+const FieldGroup = styled.label`
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+`;
+
+const FieldName = styled.span`
+  font-weight: 600;
+  color: #243b53;
+  font-size: 0.9rem;
+`;
+
+const FieldInput = styled.input`
+  border: 1px solid #cbd2d9;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.95rem;
+  color: #1f2933;
+  background: #f8fafc;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+
+  &:focus {
+    outline: none;
+    border-color: #486581;
+    box-shadow: 0 0 0 3px rgba(72, 101, 129, 0.2);
+  }
+`;
+
+const CheckboxField = styled.label`
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+`;
+
+const CheckboxInput = styled.input`
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: #3a4b6a;
+`;
+
+const CheckboxLabel = styled.span`
+  font-size: 0.95rem;
+  color: #1f2933;
+`;
+
+const EmptyState = styled.div`
+  font-size: 0.9rem;
+  color: #52606d;
+  font-style: italic;
+`;
+
 const UNKNOWN_GROUP_LABEL = '(no group id)';
 const UNKNOWN_ARTIFACT_LABEL = '(no artifact id)';
 
@@ -268,6 +246,217 @@ const normalizeCoordinatePart = (value: string | null | undefined, fallback: str
 
   const trimmed = value.trim();
   return trimmed.length === 0 ? fallback : trimmed;
+};
+
+type PomPrimitive = string | number | boolean | null;
+type PomPathSegment = string;
+
+const isPrimitive = (value: unknown): value is PomPrimitive => {
+  return (
+    typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean' || value === null
+  );
+};
+
+const buildPomPath = (base: string, segments: PomPathSegment[]): string => {
+  return segments.reduce((path, segment) => {
+    if (segment.startsWith('[')) {
+      return `${path}${segment}`;
+    }
+
+    return `${path}.${segment}`;
+  }, base);
+};
+
+const summarizeString = (value: unknown): string | null => {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length === 0 ? null : trimmed;
+};
+
+const createObjectSummary = (label: string | undefined, record: Record<string, unknown>): string => {
+  const group = summarizeString(record.groupId);
+  const artifact = summarizeString(record.artifactId);
+  const name = summarizeString(record.name);
+  const id = summarizeString(record.id);
+  const version = summarizeString(record.version);
+  const scope = summarizeString(record.scope);
+
+  const coordinateParts: string[] = [];
+  if (group && artifact) {
+    coordinateParts.push(`${group}:${artifact}`);
+  } else if (group) {
+    coordinateParts.push(group);
+  } else if (artifact) {
+    coordinateParts.push(artifact);
+  }
+
+  if (!coordinateParts.length) {
+    const fallback = summarizeString(record.key) ?? name ?? id;
+    if (fallback) {
+      coordinateParts.push(fallback);
+    }
+  }
+
+  if (version && coordinateParts.length) {
+    coordinateParts[coordinateParts.length - 1] = `${coordinateParts[coordinateParts.length - 1]} ${version}`;
+  }
+
+  if (scope && coordinateParts.length) {
+    coordinateParts[coordinateParts.length - 1] = `${coordinateParts[coordinateParts.length - 1]} (${scope})`;
+  }
+
+  if (!label && coordinateParts.length) {
+    return coordinateParts.join(' · ');
+  }
+
+  if (label && coordinateParts.length) {
+    return `${label} · ${coordinateParts.join(' · ')}`;
+  }
+
+  return label ?? 'Object';
+};
+
+const createArraySummary = (label: string | undefined, length: number): string => {
+  const base = label ?? 'List';
+  const suffix = length === 1 ? '1 item' : `${length} items`;
+  return `${base} · ${suffix}`;
+};
+
+const singularize = (label: string): string => {
+  if (label.endsWith('ies')) {
+    return `${label.slice(0, -3)}y`;
+  }
+
+  if (label.endsWith('ses')) {
+    return label.slice(0, -2);
+  }
+
+  if (label.endsWith('s') && label.length > 1) {
+    return label.slice(0, -1);
+  }
+
+  return label;
+};
+
+const createArrayItemLabel = (parentLabel: string | undefined, index: number): string => {
+  if (!parentLabel) {
+    return `Item ${index + 1}`;
+  }
+
+  return `${singularize(parentLabel)} ${index + 1}`;
+};
+
+type RenderOptions = {
+  entryPath: string;
+  segments: PomPathSegment[];
+  label?: string;
+  defaultOpen?: boolean;
+};
+
+const renderPomNode = (value: unknown, options: RenderOptions): React.ReactNode => {
+  const { entryPath, segments, label, defaultOpen } = options;
+  const pomPath = buildPomPath(entryPath, segments);
+  const displayLabel = label ?? (segments.length ? segments[segments.length - 1] : 'value');
+
+  if (isPrimitive(value)) {
+    if (typeof value === 'boolean') {
+      return (
+        <CheckboxField key={pomPath}>
+          <CheckboxInput
+            type="checkbox"
+            checked={value}
+            readOnly
+            aria-readonly="true"
+            data-pompath={pomPath}
+          />
+          <CheckboxLabel>{displayLabel}</CheckboxLabel>
+        </CheckboxField>
+      );
+    }
+
+    const inputType = typeof value === 'number' ? 'number' : 'text';
+    const stringValue = value === null ? '' : String(value);
+    const placeholder = value === null ? 'null' : undefined;
+
+    return (
+      <FieldGroup key={pomPath}>
+        <FieldName>{displayLabel}</FieldName>
+        <FieldInput
+          type={inputType}
+          value={stringValue}
+          placeholder={placeholder}
+          readOnly
+          data-pompath={pomPath}
+        />
+      </FieldGroup>
+    );
+  }
+
+  if (Array.isArray(value)) {
+    const summary = createArraySummary(displayLabel, value.length);
+    return (
+      <PomDetails key={pomPath} open={defaultOpen}>
+        <PomSummary>
+          <SummaryPath>{summary}</SummaryPath>
+          <SummaryIcon aria-hidden="true">▾</SummaryIcon>
+        </PomSummary>
+        <PomBody>
+          {value.length === 0 ? (
+            <EmptyState>Empty list</EmptyState>
+          ) : (
+            <NodeChildren>
+              {value.map((item, index) =>
+                renderPomNode(item, {
+                  entryPath,
+                  segments: [...segments, `[${index}]`],
+                  label: createArrayItemLabel(displayLabel, index),
+                })
+              )}
+            </NodeChildren>
+          )}
+        </PomBody>
+      </PomDetails>
+    );
+  }
+
+  if (isRecord(value)) {
+    const entries = Object.entries(value).sort((first, second) => first[0].localeCompare(second[0]));
+    const summary = createObjectSummary(displayLabel, value);
+
+    return (
+      <PomDetails key={pomPath} open={defaultOpen}>
+        <PomSummary>
+          <SummaryPath>{summary}</SummaryPath>
+          <SummaryIcon aria-hidden="true">▾</SummaryIcon>
+        </PomSummary>
+        <PomBody>
+          {entries.length === 0 ? (
+            <EmptyState>No fields</EmptyState>
+          ) : (
+            <NodeChildren>
+              {entries.map(([childKey, childValue]) =>
+                renderPomNode(childValue, {
+                  entryPath,
+                  segments: [...segments, childKey],
+                  label: childKey,
+                })
+              )}
+            </NodeChildren>
+          )}
+        </PomBody>
+      </PomDetails>
+    );
+  }
+
+  return (
+    <FieldGroup key={pomPath}>
+      <FieldName>{displayLabel}</FieldName>
+      <FieldInput type="text" value={String(value)} readOnly data-pompath={pomPath} />
+    </FieldGroup>
+  );
 };
 
 export const App: React.FC = () => {
@@ -344,17 +533,6 @@ export const App: React.FC = () => {
       .sort((first, second) => first.groupId.localeCompare(second.groupId));
   }, [parsedPoms]);
 
-  const formattedEntries = React.useMemo(() => {
-    if (!parsedPoms) {
-      return new Map<string, string>();
-    }
-
-    return parsedPoms.entries.reduce((accumulator, entry) => {
-      accumulator.set(entry.pomPath, formatValue(entry.model));
-      return accumulator;
-    }, new Map<string, string>());
-  }, [parsedPoms]);
-
   return (
     <Page>
       <PageHeader>
@@ -405,9 +583,14 @@ export const App: React.FC = () => {
               <GroupSection key={group.groupId}>
                 <GroupTitle>{group.groupId}</GroupTitle>
                 {group.entries.map((entry) => {
-                  const formattedPom = formattedEntries.get(entry.pomPath) ?? '';
                   const displayGroup = normalizeCoordinatePart(entry.groupId, UNKNOWN_GROUP_LABEL);
                   const displayArtifact = normalizeCoordinatePart(entry.artifactId, UNKNOWN_ARTIFACT_LABEL);
+                  const modelNode = renderPomNode(entry.model, {
+                    entryPath: entry.pomPath,
+                    segments: [],
+                    label: 'Model',
+                    defaultOpen: true,
+                  });
 
                   return (
                     <PomDetails key={entry.pomPath}>
@@ -430,7 +613,7 @@ export const App: React.FC = () => {
                             </code>
                           </span>
                         </Metadata>
-                        <CodeBlock>{formattedPom}</CodeBlock>
+                        <NodeChildren>{modelNode}</NodeChildren>
                       </PomBody>
                     </PomDetails>
                   );
