@@ -15,6 +15,7 @@ if [ ! -f package-lock.json ]; then
 else
   npm ci
 fi
+npm run lint
 npm run build
 popd >/dev/null
 
@@ -24,7 +25,7 @@ if compgen -G "$CLIENT_DIR/dist/*" > /dev/null; then
 fi
 
 pushd "$SERVER_DIR" >/dev/null
-mvn -B clean package
+mvn -B clean verify
 popd >/dev/null
 
 FINAL_JAR="$OUTPUT_DIR/pompot.jar"
