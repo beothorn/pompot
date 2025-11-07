@@ -13,7 +13,7 @@ This section mirrors the behaviors encoded in the server so maintainers can map 
    - `isCli` centralizes the CLI check so callers do not reimplement comparisons.
 3. **Startup parsing** (`server/src/main/java/com/pompot/server/ProjectPomInitializer.java`)
    - Implements `ApplicationRunner` so it executes after the Spring context is ready in UI mode.
-   - Resolves the scan root from `--parent` or defaults to the working directory, recursively discovering every `pom.xml`.
+   - Resolves the scan root from `--parent` or defaults to the working directory, recursively discovering every `pom.xml`. Values that start with `~/` are expanded against `user.home` before the filesystem lookup.
    - Stores a `ParsedPomCollection` with metadata for each parsed file or clears the repository when traversal or parsing fails.
 4. **pom.xml parser** (`server/src/main/java/com/pompot/server/parser/PomFileParser.java`)
    - Wraps Maven's `ModelReader` to read the `pom.xml` files selected by the initializer.

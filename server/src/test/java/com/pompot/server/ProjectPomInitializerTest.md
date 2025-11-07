@@ -18,3 +18,10 @@ Creates fresh instances of the parser, repository and initializer before each te
 - Seeds the repository with placeholder data.
 - Runs the initializer against an empty temporary directory.
 - Asserts the repository ends up empty when no pom files exist.
+
+## expandsTildeInParentArgument
+
+### Behavior
+- Copies the sample projects into a temporary folder under the user home.
+- Runs the initializer with a `--parent` argument that starts with `~/`.
+- Asserts the repository stores the parsed pom entries, demonstrating tilde expansion works.
