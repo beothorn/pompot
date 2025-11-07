@@ -59,7 +59,7 @@ class ProjectPomInitializer implements ApplicationRunner {
         try (Stream<Path> walker = Files.walk(scanRoot)) {
             pomFiles = walker
                 .filter(Files::isRegularFile)
-                .filter(path -> path.getFileName().toString().equalsIgnoreCase("pom.xml"))
+                .filter(this::isPomXmlFile)
                 .collect(Collectors.toList());
         } catch (IOException exception) {
             LOGGER.error("Failed to traverse {}", scanRoot.toAbsolutePath(), exception);
@@ -114,6 +114,19 @@ class ProjectPomInitializer implements ApplicationRunner {
         ParsedPomCollection collection = new ParsedPomCollection(normalizedRoot.toString(), List.copyOf(parsedPoms));
         parsedPomRepository.store(collection);
         LOGGER.info("Parsed {} pom.xml files under {}", parsedPoms.size(), normalizedRoot);
+    }
+
+    private boolean isPomXmlFile(Path candidate) {
+        if (candidate == null) {
+            return false;
+        }
+
+        Path fileName = candidate.getFileName();
+        if (fileName == null) {
+            return false;
+        }
+
+        return "pom.xml".equalsIgnoreCase(fileName.toString());
     }
 
     private Path resolveScanRoot(ApplicationArguments arguments) {

@@ -19,6 +19,7 @@ scanRoot = resolve --parent argument or working directory
 if scanRoot invalid:
   clear repository and return
 pomFiles = recursively list pom.xml under scanRoot
+  ignore entries without a valid file name
 if no pomFiles:
   clear repository and return
 for each pomFile:

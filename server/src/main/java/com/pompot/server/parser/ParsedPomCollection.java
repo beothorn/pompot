@@ -9,4 +9,8 @@ import java.util.List;
  * @param entries parsed pom entries discovered under the root.
  */
 public record ParsedPomCollection(String scannedRoot, List<ParsedPom> entries) {
+
+    public ParsedPomCollection {
+        entries = List.copyOf(entries);
+    }
 }
