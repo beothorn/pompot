@@ -1,11 +1,18 @@
 # ParsedPom
 
-Simple data record describing a parsed pom file and associated metadata.
+Simple data record describing a parsed pom file and associated metadata. It now
+includes the `TextGraph` representation so callers can inspect or edit the pom
+structure through shared textual references. The graph is stored and returned as
+a defensive copy to avoid leaking the internal repository state while still
+sharing the mutable `TextReference` handles.
 
-## Fields
-
-- `String pomPath` – Absolute path to the parsed `pom.xml` file.
-- `String relativePath` – Path to the pom relative to the scanned root directory.
-- `String groupId` – Maven group identifier resolved for the pom.
-- `String artifactId` – Maven artifact identifier resolved for the pom.
-- `JsonNode model` – JSON tree produced from the Maven model.
+```
+record ParsedPom {
+  String pomPath
+  String relativePath
+  String groupId
+  String artifactId
+  JsonNode model
+  TextGraph graph
+}
+```

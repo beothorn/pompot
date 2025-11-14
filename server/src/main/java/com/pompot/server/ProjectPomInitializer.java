@@ -95,7 +95,8 @@ class ProjectPomInitializer implements ApplicationRunner {
                 relativePath,
                 emptyToNull(result.groupId()),
                 emptyToNull(result.artifactId()),
-                result.model()
+                result.model(),
+                result.graph()
             );
             parsedPoms.add(parsedPom);
         }

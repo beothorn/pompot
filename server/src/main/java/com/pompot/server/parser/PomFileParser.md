@@ -30,7 +30,8 @@ try reading model using Maven's ModelReader with non-strict mode
 remove parent pointers from any Xpp3Dom configurations to avoid recursion
 convert model to JsonNode via ObjectMapper
 derive groupId and artifactId (fallback to parent when absent)
-return optional containing PomParseResult with metadata and JsonNode
+build TextGraph representation describing pom relationships
+return optional containing PomParseResult with metadata, JsonNode and graph
 catch IOException or runtime serialization errors:
   log error and return empty optional
 ```

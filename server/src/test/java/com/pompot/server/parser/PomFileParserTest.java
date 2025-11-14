@@ -1,10 +1,15 @@
 package com.pompot.server.parser;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.pompot.server.pomgraph.GraphEdge;
+import com.pompot.server.pomgraph.GraphNode;
+import com.pompot.server.pomgraph.TextGraph;
 import java.nio.file.Path;
 import java.util.Optional;
 
@@ -28,6 +33,18 @@ class PomFileParserTest {
         assertEquals("demo", result.artifactId());
         assertEquals("com.example", result.model().path("groupId").asText());
         assertEquals("demo", result.model().path("artifactId").asText());
+
+        TextGraph graph = result.graph();
+        TextGraph graphSnapshot = result.graph();
+        assertNotSame(graph, graphSnapshot, "Parse result should return a defensive copy of the graph");
+        assertNotNull(graph, "Graph should be present in the parse result");
+        GraphNode pomNode = graph
+            .findNode("pom:" + projectRoot.toAbsolutePath().normalize())
+            .orElseThrow(() -> new AssertionError("Pom node not found"));
+        GraphEdge groupEdge = pomNode.edges("groupId").iterator().next();
+        assertEquals("com.example", groupEdge.value().value().value());
+        GraphEdge artifactEdge = pomNode.edges("artifactId").iterator().next();
+        assertEquals("demo", artifactEdge.value().value().value());
     }
 
     @Test
@@ -74,5 +91,14 @@ class PomFileParserTest {
         JsonNode reportingChild = reportingConfiguration.path("children").get(0);
         assertEquals("linkOnly", reportingChild.path("name").asText(), reportingConfiguration::toPrettyString);
         assertEquals("false", reportingChild.path("value").asText(), reportingConfiguration::toPrettyString);
+
+        TextGraph graph = result.graph();
+        TextGraph secondGraph = result.graph();
+        assertNotSame(graph, secondGraph, "Graph access should provide a fresh snapshot each time");
+        assertNotNull(graph, "Graph should be generated for pom with plugin configuration");
+        GraphNode pomNode = graph
+            .findNode("pom:" + projectRoot.toAbsolutePath().normalize())
+            .orElseThrow(() -> new AssertionError("Pom node not found"));
+        assertTrue(pomNode.edges("dependency").isEmpty(), "Sample project should not have direct dependencies");
     }
 }
