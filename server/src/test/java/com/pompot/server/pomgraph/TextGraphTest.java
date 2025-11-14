@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Collection;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class TextGraphTest {
@@ -30,12 +31,16 @@ class TextGraphTest {
 
         GraphEdge edge = pom.connect("property", property, version);
 
-        assertSame(version, edge.value(), "Edge should store the shared text reference");
+        assertSame(version, edge.value().text().orElseThrow(), "Edge should store the shared text reference");
         Collection<GraphEdge> edges = pom.edges("property");
         assertEquals(1, edges.size(), "Pom node should expose the property edge");
         GraphEdge stored = edges.iterator().next();
         assertSame(property, stored.target(), "Stored edge should point to the property node");
-        assertEquals("1.0.0", stored.value().value().value(), "Edge payload should expose the text value");
+        assertEquals(
+            "1.0.0",
+            stored.value().text().orElseThrow().value().value(),
+            "Edge payload should expose the text value"
+        );
     }
 
     @Test
@@ -51,8 +56,14 @@ class TextGraphTest {
 
         version.update("3.13.0");
 
-        assertTrue(pomOne.edges("dependency").stream().allMatch(edge -> edge.value().value().value().equals("3.13.0")));
-        assertTrue(pomTwo.edges("dependency").stream().allMatch(edge -> edge.value().value().value().equals("3.13.0")));
+        assertTrue(pomOne
+            .edges("dependency")
+            .stream()
+            .allMatch(edge -> edge.value().text().orElseThrow().value().value().equals("3.13.0")));
+        assertTrue(pomTwo
+            .edges("dependency")
+            .stream()
+            .allMatch(edge -> edge.value().text().orElseThrow().value().value().equals("3.13.0")));
     }
 
     @Test
@@ -73,15 +84,38 @@ class TextGraphTest {
         assertNotSame(property, copiedProperty, "Target nodes should be re-created on copy");
 
         GraphEdge copiedEdge = copiedPom.edges("property").iterator().next();
-        assertSame(version, copiedEdge.value(), "Text references must be shared across copies");
+        assertSame(version, copiedEdge.value().text().orElseThrow(), "Text references must be shared across copies");
 
-        copiedEdge.value().update("2.0.0");
+        copiedEdge.value().text().orElseThrow().update("2.0.0");
 
         GraphEdge originalEdge = pom.edges("property").iterator().next();
         assertEquals(
             "2.0.0",
-            originalEdge.value().value().value(),
+            originalEdge.value().text().orElseThrow().value().value(),
             "Updating the shared text reference should reflect on the original graph"
         );
+    }
+
+    @Test
+    void connectAcceptsCompositePayloads() {
+        TextGraph graph = new TextGraph();
+        GraphNode pom = graph.addNode("pom:project");
+        GraphNode dependency = graph.addNode("dependency:com.example:demo");
+
+        TextReference version = graph.createText("1.0.0");
+        TextReference scope = graph.createText("compile");
+        GraphValue payload = GraphValue.composite(Map.of(
+            "version",
+            GraphValue.text(version),
+            "scope",
+            GraphValue.text(scope)
+        ));
+
+        GraphEdge edge = pom.connect("dependency", dependency, payload);
+
+        Map<String, GraphValue> children = edge.value().children();
+        assertEquals(2, children.size(), "Composite payload should expose child entries");
+        assertSame(version, children.get("version").text().orElseThrow(), "Version reference should be stored");
+        assertSame(scope, children.get("scope").text().orElseThrow(), "Scope reference should be stored");
     }
 }

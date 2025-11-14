@@ -7,6 +7,7 @@ Loads every `pom.xml` file found under the working directory (or `--parent` argu
 ### Parameters
 - `PomFileParser pomFileParser` – Reads pom files and converts them into JSON trees.
 - `ParsedPomRepository parsedPomRepository` – Stores the parsed results for later retrieval.
+- `CommonValueExtractor commonValueExtractor` – Aggregates repeated values across parsed graphs.
 
 ## run
 
@@ -32,6 +33,7 @@ for each pomFile:
 if no entries parsed:
   clear repository and return
 sort entries by groupId, artifactId and relative path
-store collection in repository with absolute scan root
+commonValues = extract repeated values from parsed entries
+store collection with entries and commonValues in repository using absolute scan root
 log how many pom files were parsed
 ```

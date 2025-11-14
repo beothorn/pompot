@@ -3,12 +3,14 @@ package com.pompot.server.parser;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pompot.server.pomgraph.GraphNode;
+import com.pompot.server.pomgraph.GraphValue;
 import com.pompot.server.pomgraph.TextGraph;
 import com.pompot.server.pomgraph.TextReference;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -181,8 +183,32 @@ public class PomFileParser {
 
             GraphNode dependencyNode = graph.addNode(
                 nodeId("dependency:", dependency.getGroupId(), dependency.getArtifactId(), dependency.getType(), dependency.getClassifier()));
-            attachEdge(graph, pomNode, dependencyNode, relationship, dependency.getVersion());
+            TextReference version = createText(graph, dependency.getVersion());
+            if (version == null) {
+                continue;
+            }
+
+            Map<String, GraphValue> payload = new LinkedHashMap<>();
+            payload.put("version", GraphValue.text(version));
+            addGraphValue(payload, graph, "groupId", dependency.getGroupId());
+            addGraphValue(payload, graph, "artifactId", dependency.getArtifactId());
+            addGraphValue(payload, graph, "type", dependency.getType());
+            addGraphValue(payload, graph, "classifier", dependency.getClassifier());
+            addGraphValue(payload, graph, "scope", dependency.getScope());
+
+            GraphValue value = GraphValue.composite(payload);
+            pomNode.connect(relationship, dependencyNode, value);
         }
+    }
+
+    private void addGraphValue(Map<String, GraphValue> payload, TextGraph graph, String name, String rawValue) {
+        String normalized = normalize(rawValue);
+        if (normalized.isEmpty()) {
+            return;
+        }
+
+        TextReference reference = graph.createText(normalized);
+        payload.put(name, GraphValue.text(reference));
     }
 
     private void attachAttribute(TextGraph graph, GraphNode source, String name, String value) {

@@ -1,12 +1,15 @@
 # pomgraph package
 
 Provides the graph abstraction used to represent parsed pom files. The graph is
-centered around `TextReference` payloads so different parts of the model can
-share the same textual value and update it in one place.
+centered around `GraphValue` payloads so different parts of the model can share
+the same textual value or expose composite structures when additional context is
+required.
 
 * `TextGraph` – owns nodes and text references.
 * `GraphNode` – vertex with outgoing edges grouped by relationship name.
-* `GraphEdge` – directed connection holding a `TextReference` payload.
+* `GraphEdge` – directed connection holding a `GraphValue` payload.
+* `GraphValue` – payload abstraction that can wrap text references or nested
+  structures.
 * `Text` – immutable wrapper around the raw string.
 * `TextReference` – mutable handle that allows sharing `Text` instances.
 
