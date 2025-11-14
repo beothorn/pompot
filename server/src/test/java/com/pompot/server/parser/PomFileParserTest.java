@@ -2,6 +2,7 @@ package com.pompot.server.parser;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -34,6 +35,8 @@ class PomFileParserTest {
         assertEquals("demo", result.model().path("artifactId").asText());
 
         TextGraph graph = result.graph();
+        TextGraph graphSnapshot = result.graph();
+        assertNotSame(graph, graphSnapshot, "Parse result should return a defensive copy of the graph");
         assertNotNull(graph, "Graph should be present in the parse result");
         GraphNode pomNode = graph
             .findNode("pom:" + projectRoot.toAbsolutePath().normalize())
@@ -90,6 +93,8 @@ class PomFileParserTest {
         assertEquals("false", reportingChild.path("value").asText(), reportingConfiguration::toPrettyString);
 
         TextGraph graph = result.graph();
+        TextGraph secondGraph = result.graph();
+        assertNotSame(graph, secondGraph, "Graph access should provide a fresh snapshot each time");
         assertNotNull(graph, "Graph should be generated for pom with plugin configuration");
         GraphNode pomNode = graph
             .findNode("pom:" + projectRoot.toAbsolutePath().normalize())

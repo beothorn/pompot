@@ -7,10 +7,12 @@ so they can be shared by multiple edges.
 ```
 class TextGraph {
   constructor()
+  constructor(TextGraph source)
   GraphNode addNode(String id)
   Optional<GraphNode> findNode(String id)
   Collection<GraphNode> nodes()
   TextReference createText(String value)
   Collection<TextReference> texts()
+  TextGraph copy()
 }
 ```

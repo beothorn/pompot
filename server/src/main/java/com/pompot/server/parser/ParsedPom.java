@@ -2,6 +2,7 @@ package com.pompot.server.parser;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.pompot.server.pomgraph.TextGraph;
+import java.util.Objects;
 
 /**
  * Snapshot of a parsed pom.xml including metadata useful for the UI.
@@ -20,4 +21,13 @@ public record ParsedPom(
     String artifactId,
     JsonNode model,
     TextGraph graph) {
+
+    public ParsedPom {
+        graph = Objects.requireNonNull(graph, "graph").copy();
+    }
+
+    @Override
+    public TextGraph graph() {
+        return graph.copy();
+    }
 }

@@ -22,6 +22,37 @@ public final class TextGraph {
     }
 
     /**
+     * Copy constructor used to create a structural clone of an existing graph.
+     * The cloned graph reuses the {@link TextReference} instances so updates to
+     * the shared textual values remain visible across copies.
+     *
+     * @param source graph to copy.
+     */
+    public TextGraph(TextGraph source) {
+        this();
+        TextGraph other = Objects.requireNonNull(source, "source");
+
+        Map<String, GraphNode> clonedNodes = new LinkedHashMap<>();
+        for (GraphNode node : other.nodes.values()) {
+            GraphNode clone = new GraphNode(node.id());
+            nodes.put(clone.id(), clone);
+            clonedNodes.put(clone.id(), clone);
+        }
+
+        for (Map.Entry<String, TextReference> entry : other.texts.entrySet()) {
+            texts.put(entry.getKey(), entry.getValue());
+        }
+
+        for (GraphNode node : other.nodes.values()) {
+            GraphNode clonedSource = clonedNodes.get(node.id());
+            for (GraphEdge edge : node.edges()) {
+                GraphNode clonedTarget = clonedNodes.get(edge.target().id());
+                clonedSource.connect(edge.relationship(), clonedTarget, edge.value());
+            }
+        }
+    }
+
+    /**
      * Creates or returns the node with the provided identifier.
      * @param id identifier of the node to look up.
      * @return existing or newly created node.
@@ -68,5 +99,16 @@ public final class TextGraph {
      */
     public Collection<TextReference> texts() {
         return Collections.unmodifiableCollection(texts.values());
+    }
+
+    /**
+     * Creates a structural clone of the graph sharing the {@link TextReference}
+     * instances with the original graph. It allows exposing the graph without
+     * leaking the internal node maps.
+     *
+     * @return cloned graph with identical structure.
+     */
+    public TextGraph copy() {
+        return new TextGraph(this);
     }
 }

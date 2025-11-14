@@ -1,6 +1,7 @@
 package com.pompot.server.pomgraph;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -52,5 +53,35 @@ class TextGraphTest {
 
         assertTrue(pomOne.edges("dependency").stream().allMatch(edge -> edge.value().value().value().equals("3.13.0")));
         assertTrue(pomTwo.edges("dependency").stream().allMatch(edge -> edge.value().value().value().equals("3.13.0")));
+    }
+
+    @Test
+    void copyCreatesIndependentStructureSharingTextReferences() {
+        TextGraph graph = new TextGraph();
+        GraphNode pom = graph.addNode("pom:project");
+        GraphNode property = graph.addNode("property:version");
+        TextReference version = graph.createText("1.0.0");
+        pom.connect("property", property, version);
+
+        TextGraph copy = graph.copy();
+
+        assertNotSame(graph, copy, "Copy should produce a different instance");
+        GraphNode copiedPom = copy.findNode("pom:project").orElseThrow();
+        GraphNode copiedProperty = copy.findNode("property:version").orElseThrow();
+
+        assertNotSame(pom, copiedPom, "Node instances should not be shared across copies");
+        assertNotSame(property, copiedProperty, "Target nodes should be re-created on copy");
+
+        GraphEdge copiedEdge = copiedPom.edges("property").iterator().next();
+        assertSame(version, copiedEdge.value(), "Text references must be shared across copies");
+
+        copiedEdge.value().update("2.0.0");
+
+        GraphEdge originalEdge = pom.edges("property").iterator().next();
+        assertEquals(
+            "2.0.0",
+            originalEdge.value().value().value(),
+            "Updating the shared text reference should reflect on the original graph"
+        );
     }
 }
