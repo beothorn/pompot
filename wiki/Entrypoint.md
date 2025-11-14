@@ -10,6 +10,7 @@ Pompot is a Maven projects manager that orchestrates work across multiple reposi
 - **pom.xml bootstrapping**: Pompot scans the working directory by default or the folder provided via `--parent=<path>`, parsing every descendant `pom.xml` into an in-memory JSON snapshot (leading `~/` is expanded to the user home before scanning).
 - **HTTP access to parsed metadata**: UI mode serves `GET /api/pom`, returning the stored pom snapshot or `404` when no project has been parsed yet.
 - **Default Spring Boot server**: UI mode binds to port `9754`, making it easy to run the UI alongside other services.
+- **Common value spotlight**: repeated property values and dependency versions are aggregated across parsed graphs and displayed at the top of the client UI so teams can identify coordinated upgrades quickly.
 
 ## Documentation map
 

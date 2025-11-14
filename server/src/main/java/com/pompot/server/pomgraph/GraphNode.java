@@ -38,6 +38,20 @@ public final class GraphNode {
      * @return created edge instance.
      */
     public GraphEdge connect(String relationship, GraphNode target, TextReference value) {
+        if (value == null) {
+            throw new NullPointerException("value");
+        }
+        return connect(relationship, target, GraphValue.text(value));
+    }
+
+    /**
+     * Creates an outgoing edge with an arbitrary payload.
+     * @param relationship name of the relationship represented by the edge.
+     * @param target node that receives the connection.
+     * @param value payload shared by the edge.
+     * @return created edge instance.
+     */
+    public GraphEdge connect(String relationship, GraphNode target, GraphValue value) {
         GraphEdge edge = new GraphEdge(this, target, relationship, value);
         edges.computeIfAbsent(edge.relationship(), key -> new ArrayList<>()).add(edge);
         return edge;

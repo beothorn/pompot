@@ -58,6 +58,14 @@ describe('App', () => {
           },
         },
       ],
+      commonValues: [
+        {
+          category: 'property',
+          identifier: 'java.version',
+          value: '17',
+          occurrences: 3,
+        },
+      ],
     };
     const response: MockResponse = {
       status: 200,
@@ -126,6 +134,12 @@ describe('App', () => {
 
     expect(screen.queryByLabelText('childProjectUrlInheritAppendPath')).not.toBeInTheDocument();
     expect(screen.queryByText(/modules/i)).not.toBeInTheDocument();
+
+    const commonValuesRegion = await screen.findByLabelText('Common values');
+    expect(commonValuesRegion).toBeInTheDocument();
+    expect(within(commonValuesRegion).getByText('java.version')).toBeInTheDocument();
+    expect(within(commonValuesRegion).getByText('17')).toBeInTheDocument();
+    expect(within(commonValuesRegion).getByText('3 occurrences')).toBeInTheDocument();
 
     expect(response.json).toHaveBeenCalledTimes(1);
   });

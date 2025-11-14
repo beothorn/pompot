@@ -10,9 +10,17 @@ type ParsedPomEntry = {
   model: unknown;
 };
 
+type CommonValue = {
+  category: string;
+  identifier: string;
+  value: string;
+  occurrences: number;
+};
+
 type ParsedPomResponse = {
   scannedRoot: string;
   entries: ParsedPomEntry[];
+  commonValues: CommonValue[];
 };
 
 type LoadState = 'loading' | 'ready' | 'empty' | 'error';
@@ -61,6 +69,76 @@ const GroupsContainer = styled.div`
   display: flex;
   flex-direction: column;
   gap: 2rem;
+`;
+
+const CommonValuesSection = styled.section`
+  margin-bottom: 2rem;
+  background: #f5f7fa;
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+  box-shadow: inset 0 0 0 1px #d9e2ec;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+`;
+
+const CommonValuesTitle = styled.h2`
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #243b53;
+`;
+
+const CommonValuesList = styled.ul`
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+`;
+
+const CommonValueItem = styled.li`
+  background: #ffffff;
+  border-radius: 0.75rem;
+  border: 1px solid #d9e2ec;
+  padding: 0.75rem 1rem;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+`;
+
+const CommonValueHeader = styled.div`
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+`;
+
+const CommonValueIdentifier = styled.span`
+  font-weight: 600;
+  color: #1f2933;
+`;
+
+const CommonValueOccurrences = styled.span`
+  font-size: 0.85rem;
+  color: #52606d;
+`;
+
+const CommonValueCategory = styled.span`
+  font-size: 0.85rem;
+  color: #3a4b6a;
+  text-transform: capitalize;
+`;
+
+const CommonValueValue = styled.code`
+  font-family: 'SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace';
+  font-size: 0.9rem;
+  background: #f0f4f8;
+  border-radius: 0.5rem;
+  padding: 0.2rem 0.5rem;
+  align-self: flex-start;
+  color: #243b53;
 `;
 
 const GroupSection = styled.section`
@@ -345,6 +423,10 @@ const createArrayItemLabel = (parentLabel: string | undefined, index: number): s
   return `${singularize(parentLabel)} ${index + 1}`;
 };
 
+const formatOccurrences = (count: number): string => {
+  return count === 1 ? '1 occurrence' : `${count} occurrences`;
+};
+
 type RenderOptions = {
   entryPath: string;
   segments: PomPathSegment[];
@@ -595,6 +677,27 @@ export const App: React.FC = () => {
           <RootPath>
             <MetadataLabel>Scanned root:</MetadataLabel> <code>{parsedPoms.scannedRoot}</code>
           </RootPath>
+
+          {Array.isArray(parsedPoms.commonValues) && parsedPoms.commonValues.length > 0 && (
+            <CommonValuesSection aria-label="Common values">
+              <CommonValuesTitle>Common values</CommonValuesTitle>
+              <CommonValuesList>
+                {parsedPoms.commonValues.map((item) => {
+                  const key = `${item.category}:${item.identifier}:${item.value}`;
+                  return (
+                    <CommonValueItem key={key}>
+                      <CommonValueHeader>
+                        <CommonValueIdentifier>{item.identifier}</CommonValueIdentifier>
+                        <CommonValueOccurrences>{formatOccurrences(item.occurrences)}</CommonValueOccurrences>
+                      </CommonValueHeader>
+                      <CommonValueCategory>{item.category}</CommonValueCategory>
+                      <CommonValueValue>{item.value}</CommonValueValue>
+                    </CommonValueItem>
+                  );
+                })}
+              </CommonValuesList>
+            </CommonValuesSection>
+          )}
 
           <GroupsContainer>
             {groupedEntries.map((group) => (

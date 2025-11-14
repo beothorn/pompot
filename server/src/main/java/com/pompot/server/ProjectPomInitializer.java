@@ -12,6 +12,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import com.pompot.server.parser.ParsedPom;
+import com.pompot.server.parser.CommonValue;
+import com.pompot.server.parser.CommonValueExtractor;
 import com.pompot.server.parser.ParsedPomCollection;
 import com.pompot.server.parser.ParsedPomRepository;
 import com.pompot.server.parser.PomFileParser;
@@ -32,15 +34,21 @@ class ProjectPomInitializer implements ApplicationRunner {
 
     private final PomFileParser pomFileParser;
     private final ParsedPomRepository parsedPomRepository;
+    private final CommonValueExtractor commonValueExtractor;
 
     /**
      * Creates the initializer with parsing collaborators.
      * @param pomFileParser parser used to read pom.xml files.
      * @param parsedPomRepository repository that stores the parsed result.
      */
-    ProjectPomInitializer(PomFileParser pomFileParser, ParsedPomRepository parsedPomRepository) {
+    ProjectPomInitializer(
+        PomFileParser pomFileParser,
+        ParsedPomRepository parsedPomRepository,
+        CommonValueExtractor commonValueExtractor
+    ) {
         this.pomFileParser = pomFileParser;
         this.parsedPomRepository = parsedPomRepository;
+        this.commonValueExtractor = commonValueExtractor;
     }
 
     /**
@@ -112,7 +120,12 @@ class ProjectPomInitializer implements ApplicationRunner {
             .thenComparing(ParsedPom::artifactId, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER))
             .thenComparing(ParsedPom::relativePath));
 
-        ParsedPomCollection collection = new ParsedPomCollection(normalizedRoot.toString(), List.copyOf(parsedPoms));
+        List<CommonValue> commonValues = commonValueExtractor.extract(parsedPoms);
+        ParsedPomCollection collection = new ParsedPomCollection(
+            normalizedRoot.toString(),
+            List.copyOf(parsedPoms),
+            commonValues
+        );
         parsedPomRepository.store(collection);
         LOGGER.info("Parsed {} pom.xml files under {}", parsedPoms.size(), normalizedRoot);
     }

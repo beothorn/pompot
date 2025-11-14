@@ -8,6 +8,7 @@ class GraphNode {
   constructor(String id)
   String id()
   GraphEdge connect(String relationship, GraphNode target, TextReference value)
+  GraphEdge connect(String relationship, GraphNode target, GraphValue value)
   Collection<GraphEdge> edges()
   Collection<GraphEdge> edges(String relationship)
 }

@@ -42,9 +42,9 @@ class PomFileParserTest {
             .findNode("pom:" + projectRoot.toAbsolutePath().normalize())
             .orElseThrow(() -> new AssertionError("Pom node not found"));
         GraphEdge groupEdge = pomNode.edges("groupId").iterator().next();
-        assertEquals("com.example", groupEdge.value().value().value());
+        assertEquals("com.example", groupEdge.value().text().orElseThrow().value().value());
         GraphEdge artifactEdge = pomNode.edges("artifactId").iterator().next();
-        assertEquals("demo", artifactEdge.value().value().value());
+        assertEquals("demo", artifactEdge.value().text().orElseThrow().value().value());
     }
 
     @Test

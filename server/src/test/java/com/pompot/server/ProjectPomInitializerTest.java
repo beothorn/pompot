@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.pompot.server.parser.CommonValueExtractor;
 import com.pompot.server.parser.ParsedPomCollection;
 import com.pompot.server.parser.ParsedPomRepository;
 import com.pompot.server.parser.PomFileParser;
@@ -33,7 +34,7 @@ class ProjectPomInitializerTest {
         ObjectMapper objectMapper = new ObjectMapper();
         PomFileParser parser = new PomFileParser(new DefaultModelReader(), objectMapper);
         parsedPomRepository = new ParsedPomRepository();
-        initializer = new ProjectPomInitializer(parser, parsedPomRepository);
+        initializer = new ProjectPomInitializer(parser, parsedPomRepository, new CommonValueExtractor());
     }
 
     @AfterEach
@@ -54,12 +55,13 @@ class ProjectPomInitializerTest {
         Optional<ParsedPomCollection> storedPom = parsedPomRepository.fetch();
         assertTrue(storedPom.isPresent(), "Expected parsed poms to be stored");
         assertEquals(2, storedPom.get().entries().size(), "Expected both sample projects to be parsed");
+        assertTrue(storedPom.get().commonValues().isEmpty(), "Sample projects should not yield common values");
     }
 
     @Test
     void clearsRepositoryWhenDirectoryHasNoPoms() throws Exception {
         Path emptyDirectory = Files.createTempDirectory("pompot-empty");
-        parsedPomRepository.store(new ParsedPomCollection("placeholder", java.util.List.of()));
+        parsedPomRepository.store(new ParsedPomCollection("placeholder", java.util.List.of(), java.util.List.of()));
         DefaultApplicationArguments arguments = new DefaultApplicationArguments(new String[]{"--parent=" + emptyDirectory});
 
         initializer.run(arguments);
