@@ -2,6 +2,9 @@ package com.pompot.server.parser;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.pompot.server.pomgraph.GraphNode;
+import com.pompot.server.pomgraph.TextGraph;
+import com.pompot.server.pomgraph.TextReference;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -10,7 +13,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Properties;
+import java.util.StringJoiner;
 import org.apache.maven.model.Parent;
+import org.apache.maven.model.Dependency;
+import org.apache.maven.model.DependencyManagement;
 import org.apache.maven.model.Build;
 import org.apache.maven.model.BuildBase;
 import org.apache.maven.model.Model;
@@ -69,7 +76,8 @@ public class PomFileParser {
             JsonNode asJson = objectMapper.valueToTree(model);
             String groupId = resolveGroupId(model);
             String artifactId = resolveArtifactId(model);
-            return Optional.of(new PomParseResult(groupId, artifactId, asJson));
+            TextGraph graph = buildGraph(projectRoot, model, groupId, artifactId);
+            return Optional.of(new PomParseResult(groupId, artifactId, asJson, graph));
         } catch (IOException exception) {
             LOGGER.error("Failed to parse pom.xml at {}", pomLocation.toAbsolutePath(), exception);
             return Optional.empty();
@@ -114,6 +122,109 @@ public class PomFileParser {
         }
 
         return normalize(model.getArtifactId());
+    }
+
+    private TextGraph buildGraph(Path projectRoot, Model model, String groupId, String artifactId) {
+        TextGraph graph = new TextGraph();
+        GraphNode pomNode = graph.addNode("pom:" + projectRoot.toAbsolutePath().normalize());
+
+        attachAttribute(graph, pomNode, "groupId", groupId);
+        attachAttribute(graph, pomNode, "artifactId", artifactId);
+        attachAttribute(graph, pomNode, "version", model == null ? null : model.getVersion());
+        attachAttribute(graph, pomNode, "packaging", model == null ? null : model.getPackaging());
+
+        if (model == null) {
+            return graph;
+        }
+
+        Parent parent = model.getParent();
+        if (parent != null) {
+            GraphNode parentNode = graph.addNode(nodeId("parent:", parent.getGroupId(), parent.getArtifactId()));
+            attachEdge(graph, pomNode, parentNode, "parent", parent.getVersion());
+        }
+
+        Properties properties = model.getProperties();
+        if (properties != null) {
+            for (String name : properties.stringPropertyNames()) {
+                GraphNode propertyNode = graph.addNode("property:" + name);
+                attachEdge(graph, pomNode, propertyNode, "property", properties.getProperty(name));
+            }
+        }
+
+        attachDependencies(graph, pomNode, "dependency", model.getDependencies());
+
+        DependencyManagement dependencyManagement = model.getDependencyManagement();
+        if (dependencyManagement != null) {
+            attachDependencies(graph, pomNode, "managedDependency", dependencyManagement.getDependencies());
+        }
+
+        List<String> modules = model.getModules();
+        if (modules != null) {
+            for (String module : modules) {
+                GraphNode moduleNode = graph.addNode("module:" + module);
+                attachEdge(graph, pomNode, moduleNode, "module", module);
+            }
+        }
+
+        return graph;
+    }
+
+    private void attachDependencies(TextGraph graph, GraphNode pomNode, String relationship, List<Dependency> dependencies) {
+        if (dependencies == null) {
+            return;
+        }
+
+        for (Dependency dependency : dependencies) {
+            if (dependency == null) {
+                continue;
+            }
+
+            GraphNode dependencyNode = graph.addNode(
+                nodeId("dependency:", dependency.getGroupId(), dependency.getArtifactId(), dependency.getType(), dependency.getClassifier()));
+            attachEdge(graph, pomNode, dependencyNode, relationship, dependency.getVersion());
+        }
+    }
+
+    private void attachAttribute(TextGraph graph, GraphNode source, String name, String value) {
+        TextReference reference = createText(graph, value);
+        if (reference == null) {
+            return;
+        }
+
+        GraphNode attributeNode = graph.addNode("attribute:" + name);
+        source.connect(name, attributeNode, reference);
+    }
+
+    private void attachEdge(TextGraph graph, GraphNode source, GraphNode target, String relationship, String value) {
+        TextReference reference = createText(graph, value);
+        if (reference == null) {
+            return;
+        }
+
+        source.connect(relationship, target, reference);
+    }
+
+    private TextReference createText(TextGraph graph, String value) {
+        String normalized = normalize(value);
+        if (normalized.isEmpty()) {
+            return null;
+        }
+        return graph.createText(normalized);
+    }
+
+    private String nodeId(String prefix, String... parts) {
+        StringJoiner joiner = new StringJoiner(":");
+        for (String part : parts) {
+            String normalized = normalize(part);
+            if (!normalized.isEmpty()) {
+                joiner.add(normalized);
+            }
+        }
+        String joined = joiner.toString();
+        if (joined.isEmpty()) {
+            return prefix.substring(0, prefix.length() - 1);
+        }
+        return prefix + joined;
     }
 
     /**

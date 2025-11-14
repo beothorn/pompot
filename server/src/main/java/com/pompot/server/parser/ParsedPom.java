@@ -1,6 +1,7 @@
 package com.pompot.server.parser;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.pompot.server.pomgraph.TextGraph;
 
 /**
  * Snapshot of a parsed pom.xml including metadata useful for the UI.
@@ -10,6 +11,13 @@ import com.fasterxml.jackson.databind.JsonNode;
  * @param groupId Maven group identifier resolved for the pom.
  * @param artifactId Maven artifact identifier resolved for the pom.
  * @param model JSON representation of the Maven model produced by {@link PomFileParser}.
+ * @param graph graph representation mirroring the pom contents.
  */
-public record ParsedPom(String pomPath, String relativePath, String groupId, String artifactId, JsonNode model) {
+public record ParsedPom(
+    String pomPath,
+    String relativePath,
+    String groupId,
+    String artifactId,
+    JsonNode model,
+    TextGraph graph) {
 }
