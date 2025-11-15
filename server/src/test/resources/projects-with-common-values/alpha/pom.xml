@@ -1,0 +1,41 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>com.example.alpha</groupId>
+    <artifactId>alpha-app</artifactId>
+    <version>1.0.0</version>
+
+    <properties>
+        <java.version>17</java.version>
+        <encoding>UTF-8</encoding>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.example</groupId>
+            <artifactId>shared-library</artifactId>
+            <version>1.2.3</version>
+        </dependency>
+        <dependency>
+            <groupId>com.example.alpha</groupId>
+            <artifactId>alpha-only</artifactId>
+            <version>0.1.0</version>
+        </dependency>
+    </dependencies>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>com.example</groupId>
+                <artifactId>managed-shared</artifactId>
+                <version>9.9.9</version>
+            </dependency>
+            <dependency>
+                <groupId>com.example.alpha</groupId>
+                <artifactId>managed-alpha</artifactId>
+                <version>0.9.0</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+</project>
