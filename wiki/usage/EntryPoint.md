@@ -37,3 +37,7 @@ The steps below restate what the server already performs so operators can follow
    - `404 Not Found` when no parsed pom is available (for example, due to invalid input or because the application ran in CLI mode).
 
 These outcomes duplicate the repository and controller behavior so operators can immediately understand the results they receive.
+
+## Reporting repeated values
+
+Run `java -jar pompot.jar --report-common-values /path/to/workspace` to print the repeated-value table described in [the CLI report guide](CommonValueReport.md). The command scans the provided directory recursively, expands leading `~/` and exits with code `0` when the scan succeeds even if no duplicates exist. Input validation errors are written to standard error with exit code `1`.
