@@ -1,23 +1,16 @@
 package com.pompot.server;
 
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import com.pompot.server.parser.ParsedPom;
 import com.pompot.server.parser.CommonValue;
 import com.pompot.server.parser.CommonValueExtractor;
 import com.pompot.server.parser.ParsedPomCollection;
+import com.pompot.server.parser.PomDirectoryScanner;
 import com.pompot.server.parser.ParsedPomRepository;
-import com.pompot.server.parser.PomFileParser;
-import com.pompot.server.parser.PomParseResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
@@ -32,23 +25,24 @@ class ProjectPomInitializer implements ApplicationRunner {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ProjectPomInitializer.class);
 
-    private final PomFileParser pomFileParser;
     private final ParsedPomRepository parsedPomRepository;
     private final CommonValueExtractor commonValueExtractor;
+    private final PomDirectoryScanner pomDirectoryScanner;
 
     /**
      * Creates the initializer with parsing collaborators.
-     * @param pomFileParser parser used to read pom.xml files.
      * @param parsedPomRepository repository that stores the parsed result.
+     * @param commonValueExtractor component that aggregates repeated values.
+     * @param pomDirectoryScanner scanner used to discover and parse pom files.
      */
     ProjectPomInitializer(
-        PomFileParser pomFileParser,
         ParsedPomRepository parsedPomRepository,
-        CommonValueExtractor commonValueExtractor
+        CommonValueExtractor commonValueExtractor,
+        PomDirectoryScanner pomDirectoryScanner
     ) {
-        this.pomFileParser = pomFileParser;
         this.parsedPomRepository = parsedPomRepository;
         this.commonValueExtractor = commonValueExtractor;
+        this.pomDirectoryScanner = pomDirectoryScanner;
     }
 
     /**
@@ -63,84 +57,28 @@ class ProjectPomInitializer implements ApplicationRunner {
             return;
         }
 
-        List<Path> pomFiles;
-        try (Stream<Path> walker = Files.walk(scanRoot)) {
-            pomFiles = walker
-                .filter(Files::isRegularFile)
-                .filter(this::isPomXmlFile)
-                .collect(Collectors.toList());
-        } catch (IOException exception) {
-            LOGGER.error("Failed to traverse {}", scanRoot.toAbsolutePath(), exception);
+        PomDirectoryScanner.ScanResult scanResult = pomDirectoryScanner.scan(scanRoot);
+        if (!scanResult.foundPomFiles()) {
+            LOGGER.info("No pom.xml files found under {}", scanRoot.toAbsolutePath().normalize());
             parsedPomRepository.clear();
             return;
         }
 
-        if (pomFiles.isEmpty()) {
-            LOGGER.info("No pom.xml files found under {}", scanRoot.toAbsolutePath());
-            parsedPomRepository.clear();
-            return;
-        }
-
-        Path normalizedRoot = scanRoot.toAbsolutePath().normalize();
-        List<ParsedPom> parsedPoms = new ArrayList<>();
-
-        for (Path pomFile : pomFiles) {
-            Path projectRoot = pomFile.getParent();
-            if (projectRoot == null) {
-                continue;
-            }
-
-            Optional<PomParseResult> parseResult = pomFileParser.parse(projectRoot);
-            if (parseResult.isEmpty()) {
-                continue;
-            }
-
-            Path absolutePom = pomFile.toAbsolutePath().normalize();
-            String relativePath = deriveRelativePath(normalizedRoot, absolutePom);
-            PomParseResult result = parseResult.get();
-            ParsedPom parsedPom = new ParsedPom(
-                absolutePom.toString(),
-                relativePath,
-                emptyToNull(result.groupId()),
-                emptyToNull(result.artifactId()),
-                result.model(),
-                result.graph()
-            );
-            parsedPoms.add(parsedPom);
-        }
-
+        List<ParsedPom> parsedPoms = scanResult.parsedPoms();
         if (parsedPoms.isEmpty()) {
-            LOGGER.warn("Failed to parse pom.xml files under {}", normalizedRoot);
+            LOGGER.warn("Failed to parse pom.xml files under {}", scanResult.root());
             parsedPomRepository.clear();
             return;
         }
-
-        parsedPoms.sort(Comparator
-            .comparing(ParsedPom::groupId, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER))
-            .thenComparing(ParsedPom::artifactId, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER))
-            .thenComparing(ParsedPom::relativePath));
 
         List<CommonValue> commonValues = commonValueExtractor.extract(parsedPoms);
         ParsedPomCollection collection = new ParsedPomCollection(
-            normalizedRoot.toString(),
-            List.copyOf(parsedPoms),
+            scanResult.root().toString(),
+            parsedPoms,
             commonValues
         );
         parsedPomRepository.store(collection);
-        LOGGER.info("Parsed {} pom.xml files under {}", parsedPoms.size(), normalizedRoot);
-    }
-
-    private boolean isPomXmlFile(Path candidate) {
-        if (candidate == null) {
-            return false;
-        }
-
-        Path fileName = candidate.getFileName();
-        if (fileName == null) {
-            return false;
-        }
-
-        return "pom.xml".equalsIgnoreCase(fileName.toString());
+        LOGGER.info("Parsed {} pom.xml files under {}", parsedPoms.size(), scanResult.root());
     }
 
     private Path resolveScanRoot(ApplicationArguments arguments) {
@@ -206,25 +144,4 @@ class ProjectPomInitializer implements ApplicationRunner {
         return trimmed;
     }
 
-    private String deriveRelativePath(Path root, Path pomFile) {
-        try {
-            return root.relativize(pomFile).toString();
-        } catch (IllegalArgumentException exception) {
-            LOGGER.warn("Could not relativize {} against {}", pomFile, root, exception);
-            return pomFile.toString();
-        }
-    }
-
-    private String emptyToNull(String value) {
-        if (value == null) {
-            return null;
-        }
-
-        String trimmed = value.trim();
-        if (trimmed.isEmpty()) {
-            return null;
-        }
-
-        return trimmed;
-    }
 }

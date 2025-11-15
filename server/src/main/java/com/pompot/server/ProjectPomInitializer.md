@@ -5,9 +5,9 @@ Loads every `pom.xml` file found under the working directory (or `--parent` argu
 ## Constructor
 
 ### Parameters
-- `PomFileParser pomFileParser` – Reads pom files and converts them into JSON trees.
 - `ParsedPomRepository parsedPomRepository` – Stores the parsed results for later retrieval.
 - `CommonValueExtractor commonValueExtractor` – Aggregates repeated values across parsed graphs.
+- `PomDirectoryScanner pomDirectoryScanner` – Locates and parses pom files under the configured root.
 
 ## run
 
@@ -21,18 +21,12 @@ if scanRoot invalid:
   clear repository and return
 if --parent starts with '~':
   expand it to the user home directory before resolving the path
-pomFiles = recursively list pom.xml under scanRoot
-  ignore entries without a valid file name
-if no pomFiles:
+scanResult = pomDirectoryScanner.scan(scanRoot)
+if no pom files found:
   clear repository and return
-for each pomFile:
-  parse directory containing pom
-  if parsing succeeds:
-    derive relative path
-    collect parsed entry with metadata
-if no entries parsed:
+if scanResult contains no parsed entries:
   clear repository and return
-sort entries by groupId, artifactId and relative path
+parsedPoms = scanResult.parsedPoms
 commonValues = extract repeated values from parsed entries
 store collection with entries and commonValues in repository using absolute scan root
 log how many pom files were parsed

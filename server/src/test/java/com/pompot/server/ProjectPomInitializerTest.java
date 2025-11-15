@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pompot.server.parser.CommonValueExtractor;
 import com.pompot.server.parser.ParsedPomCollection;
 import com.pompot.server.parser.ParsedPomRepository;
+import com.pompot.server.parser.PomDirectoryScanner;
 import com.pompot.server.parser.PomFileParser;
 import java.io.IOException;
 import java.nio.file.FileVisitResult;
@@ -34,7 +35,8 @@ class ProjectPomInitializerTest {
         ObjectMapper objectMapper = new ObjectMapper();
         PomFileParser parser = new PomFileParser(new DefaultModelReader(), objectMapper);
         parsedPomRepository = new ParsedPomRepository();
-        initializer = new ProjectPomInitializer(parser, parsedPomRepository, new CommonValueExtractor());
+        PomDirectoryScanner scanner = new PomDirectoryScanner(parser);
+        initializer = new ProjectPomInitializer(parsedPomRepository, new CommonValueExtractor(), scanner);
     }
 
     @AfterEach
