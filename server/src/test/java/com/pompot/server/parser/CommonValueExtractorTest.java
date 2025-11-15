@@ -89,6 +89,115 @@ class CommonValueExtractorTest {
     }
 
     @Test
+    void extractReportsExtendedCategories() {
+        CommonValueExtractor extractor = new CommonValueExtractor();
+
+        ParsedPom first = createParsedPom(
+            "/projects/extended/one/pom.xml",
+            graph -> {
+                GraphNode pom = graph.addNode("pom:/projects/extended/one");
+                GraphNode parent = graph.addNode("parent:com.example:root-parent");
+                pom.connect("parent", parent, graph.createText("42.0"));
+
+                GraphNode property = graph.addNode("property:java.version");
+                pom.connect("property", property, graph.createText("17"));
+
+                GraphNode dependency = graph.addNode("dependency:com.example:shared");
+                pom.connect("dependency", dependency, dependencyValue(graph, "com.example", "shared", "1.0.0", null, null, null));
+
+                GraphNode managed = graph.addNode("dependency:com.example:managed");
+                pom.connect("managedDependency", managed, dependencyValue(graph, "com.example", "managed", "2.0.0", null, null, null));
+
+                GraphNode bom = graph.addNode("bom:com.example:platform:pom");
+                pom.connect("bom", bom, dependencyValue(graph, "com.example", "platform", "9.9.9", "pom", null, "import"));
+
+                GraphNode plugin = graph.addNode("plugin:org.apache.maven.plugins:maven-compiler-plugin");
+                pom.connect("plugin", plugin, pluginValue(graph, "org.apache.maven.plugins", "maven-compiler-plugin", "3.11.0"));
+
+                GraphNode managedPlugin = graph.addNode("plugin:org.apache.maven.plugins:maven-surefire-plugin");
+                pom.connect(
+                    "managedPlugin",
+                    managedPlugin,
+                    pluginValue(graph, "org.apache.maven.plugins", "maven-surefire-plugin", "3.1.2")
+                );
+
+                GraphNode tile = graph.addNode("tile:com.example.tiles:java-conventions:1.0.0");
+                pom.connect("tile", tile, graph.createText("com.example.tiles:java-conventions:1.0.0"));
+            }
+        );
+
+        ParsedPom second = createParsedPom(
+            "/projects/extended/two/pom.xml",
+            graph -> {
+                GraphNode pom = graph.addNode("pom:/projects/extended/two");
+                GraphNode parent = graph.addNode("parent:com.example:root-parent");
+                pom.connect("parent", parent, graph.createText("42.0"));
+
+                GraphNode property = graph.addNode("property:java.version");
+                pom.connect("property", property, graph.createText("17"));
+
+                GraphNode dependency = graph.addNode("dependency:com.example:shared");
+                pom.connect("dependency", dependency, dependencyValue(graph, "com.example", "shared", "1.0.0", null, null, null));
+
+                GraphNode managed = graph.addNode("dependency:com.example:managed");
+                pom.connect("managedDependency", managed, dependencyValue(graph, "com.example", "managed", "2.0.0", null, null, null));
+
+                GraphNode bom = graph.addNode("bom:com.example:platform:pom");
+                pom.connect("bom", bom, dependencyValue(graph, "com.example", "platform", "9.9.9", "pom", null, "import"));
+
+                GraphNode plugin = graph.addNode("plugin:org.apache.maven.plugins:maven-compiler-plugin");
+                pom.connect("plugin", plugin, pluginValue(graph, "org.apache.maven.plugins", "maven-compiler-plugin", "3.11.0"));
+
+                GraphNode managedPlugin = graph.addNode("plugin:org.apache.maven.plugins:maven-surefire-plugin");
+                pom.connect(
+                    "managedPlugin",
+                    managedPlugin,
+                    pluginValue(graph, "org.apache.maven.plugins", "maven-surefire-plugin", "3.1.2")
+                );
+
+                GraphNode tile = graph.addNode("tile:com.example.tiles:java-conventions:1.0.0");
+                pom.connect("tile", tile, graph.createText("com.example.tiles:java-conventions:1.0.0"));
+            }
+        );
+
+        List<CommonValue> values = extractor.extract(List.of(first, second));
+
+        assertEquals(8, values.size(), "Expected extended categories to be reported");
+
+        CommonValue bomValue = findValue(values, "bom", "com.example:platform:pom [import]");
+        assertEquals("9.9.9", bomValue.value());
+
+        CommonValue dependencyValue = findValue(values, "dependency", "com.example:shared");
+        assertEquals("1.0.0", dependencyValue.value());
+
+        CommonValue managedDependencyValue = findValue(values, "managed dependency", "com.example:managed");
+        assertEquals("2.0.0", managedDependencyValue.value());
+
+        CommonValue parentValue = findValue(values, "parent", "com.example:root-parent");
+        assertEquals("42.0", parentValue.value());
+
+        CommonValue pluginValueEntry = findValue(
+            values,
+            "plugin",
+            "org.apache.maven.plugins:maven-compiler-plugin"
+        );
+        assertEquals("3.11.0", pluginValueEntry.value());
+
+        CommonValue managedPluginValue = findValue(
+            values,
+            "managed plugin",
+            "org.apache.maven.plugins:maven-surefire-plugin"
+        );
+        assertEquals("3.1.2", managedPluginValue.value());
+
+        CommonValue propertyValue = findValue(values, "property", "java.version");
+        assertEquals("17", propertyValue.value());
+
+        CommonValue tileValue = findValue(values, "tile", "com.example.tiles:java-conventions:1.0.0");
+        assertEquals("com.example.tiles:java-conventions:1.0.0", tileValue.value());
+    }
+
+    @Test
     void parsesPomResourcesAndDetectsRepeatedValues() {
         Path projectsRoot = Path.of("src", "test", "resources", "projects-with-common-values");
         Path alphaRoot = projectsRoot.resolve("alpha");
@@ -207,6 +316,18 @@ class CommonValueExtractorTest {
         String version,
         String scope
     ) {
+        return dependencyValue(graph, groupId, artifactId, version, null, null, scope);
+    }
+
+    private GraphValue dependencyValue(
+        TextGraph graph,
+        String groupId,
+        String artifactId,
+        String version,
+        String type,
+        String classifier,
+        String scope
+    ) {
         LinkedHashMap<String, GraphValue> payload = new LinkedHashMap<>();
         payload.put("version", GraphValue.text(graph.createText(version)));
         if (groupId != null) {
@@ -215,9 +336,31 @@ class CommonValueExtractorTest {
         if (artifactId != null) {
             payload.put("artifactId", GraphValue.text(graph.createText(artifactId)));
         }
+        if (type != null) {
+            payload.put("type", GraphValue.text(graph.createText(type)));
+        }
+        if (classifier != null) {
+            payload.put("classifier", GraphValue.text(graph.createText(classifier)));
+        }
         if (scope != null) {
             payload.put("scope", GraphValue.text(graph.createText(scope)));
         }
         return GraphValue.composite(payload);
+    }
+
+    private GraphValue pluginValue(TextGraph graph, String groupId, String artifactId, String version) {
+        LinkedHashMap<String, GraphValue> payload = new LinkedHashMap<>();
+        payload.put("version", GraphValue.text(graph.createText(version)));
+        payload.put("groupId", GraphValue.text(graph.createText(groupId)));
+        payload.put("artifactId", GraphValue.text(graph.createText(artifactId)));
+        return GraphValue.composite(payload);
+    }
+
+    private CommonValue findValue(List<CommonValue> values, String category, String identifier) {
+        return values
+            .stream()
+            .filter(value -> value.category().equals(category) && value.identifier().equals(identifier))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("Value not found for " + category + " -> " + identifier));
     }
 }

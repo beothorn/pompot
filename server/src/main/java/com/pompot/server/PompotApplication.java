@@ -1,9 +1,15 @@
 package com.pompot.server;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.pompot.server.arguments.ApplicationMode;
+import com.pompot.server.cli.CommonValueReportCommand;
+import com.pompot.server.parser.CommonValueExtractor;
+import com.pompot.server.parser.PomDirectoryScanner;
+import com.pompot.server.parser.PomFileParser;
 import java.util.Map;
 import java.util.Optional;
-
-import com.pompot.server.arguments.ApplicationMode;
+import org.apache.maven.model.io.DefaultModelReader;
+import org.apache.maven.model.io.ModelReader;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
@@ -22,6 +28,12 @@ public class PompotApplication {
      * @param args command-line arguments passed to the JVM.
      */
     public static void main(String[] args) {
+        Optional<String> reportArgument = extractCommonValueReportArgument(args);
+        if (reportArgument.isPresent()) {
+            runCommonValueReport(reportArgument.get());
+            return;
+        }
+
         ApplicationMode mode = ApplicationMode.fromArguments(args);
         // We check if the mode is headless
         if (mode.isCli()) {
@@ -41,5 +53,44 @@ public class PompotApplication {
         String detectedVersion = Optional.ofNullable(PompotApplication.class.getPackage().getImplementationVersion())
             .orElse("development");
         System.out.printf("pompot %s - workspace manager prototype%n", detectedVersion);
+    }
+
+    private static Optional<String> extractCommonValueReportArgument(String[] arguments) {
+        if (arguments == null || arguments.length == 0) {
+            return Optional.empty();
+        }
+
+        for (int index = 0; index < arguments.length; index += 1) {
+            String argument = arguments[index];
+            if (argument == null) {
+                continue;
+            }
+
+            if (argument.startsWith("--report-common-values=")) {
+                return Optional.of(argument.substring("--report-common-values=".length()));
+            }
+
+            if ("--report-common-values".equals(argument)) {
+                if (index + 1 < arguments.length) {
+                    String value = arguments[index + 1];
+                    if (value != null && !value.startsWith("--")) {
+                        return Optional.of(value);
+                    }
+                }
+                return Optional.of("");
+            }
+        }
+
+        return Optional.empty();
+    }
+
+    private static void runCommonValueReport(String directory) {
+        ModelReader modelReader = new DefaultModelReader();
+        ObjectMapper objectMapper = new ObjectMapper();
+        PomFileParser parser = new PomFileParser(modelReader, objectMapper);
+        PomDirectoryScanner scanner = new PomDirectoryScanner(parser);
+        CommonValueExtractor extractor = new CommonValueExtractor();
+        CommonValueReportCommand command = new CommonValueReportCommand(scanner, extractor);
+        command.run(directory, System.out, System.err);
     }
 }

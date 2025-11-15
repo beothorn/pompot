@@ -42,6 +42,11 @@ public class CommonValueExtractor {
                 collectPropertyValues(node.edges("property"), occurrences);
                 collectDependencyValues("dependency", node.edges("dependency"), occurrences);
                 collectDependencyValues("managed dependency", node.edges("managedDependency"), occurrences);
+                collectDependencyValues("bom", node.edges("bom"), occurrences);
+                collectParentValues(node.edges("parent"), occurrences);
+                collectPluginValues("plugin", node.edges("plugin"), occurrences);
+                collectPluginValues("managed plugin", node.edges("managedPlugin"), occurrences);
+                collectTileValues(node.edges("tile"), occurrences);
             }
         }
 
@@ -111,6 +116,74 @@ public class CommonValueExtractor {
         }
     }
 
+    private void collectParentValues(Collection<GraphEdge> edges, Map<Key, Occurrence> storage) {
+        if (edges == null || edges.isEmpty()) {
+            return;
+        }
+
+        for (GraphEdge edge : edges) {
+            Optional<TextReference> reference = edge.value().text();
+            if (reference.isEmpty()) {
+                continue;
+            }
+
+            String value = reference.get().value().value();
+            if (value.isBlank()) {
+                continue;
+            }
+
+            String identifier = deriveParentIdentifier(edge.target());
+            register(storage, new Key("parent", identifier, value));
+        }
+    }
+
+    private void collectPluginValues(String category, Collection<GraphEdge> edges, Map<Key, Occurrence> storage) {
+        if (edges == null || edges.isEmpty()) {
+            return;
+        }
+
+        for (GraphEdge edge : edges) {
+            GraphValue payload = edge.value();
+            GraphValue versionValue = payload.children().get("version");
+            if (versionValue == null) {
+                continue;
+            }
+            Optional<TextReference> reference = versionValue.text();
+            if (reference.isEmpty()) {
+                continue;
+            }
+
+            String value = reference.get().value().value();
+            if (value.isBlank()) {
+                continue;
+            }
+
+            String identifier = derivePluginIdentifier(payload, edge.target());
+            register(storage, new Key(category, identifier, value));
+        }
+    }
+
+    private void collectTileValues(Collection<GraphEdge> edges, Map<Key, Occurrence> storage) {
+        if (edges == null || edges.isEmpty()) {
+            return;
+        }
+
+        for (GraphEdge edge : edges) {
+            Optional<TextReference> reference = edge.value().text();
+            if (reference.isEmpty()) {
+                continue;
+            }
+
+            String value = reference.get().value().value();
+            if (value.isBlank()) {
+                continue;
+            }
+
+            String identifier = deriveTileIdentifier(edge.target());
+            register(storage, new Key("tile", identifier, value));
+        }
+    }
+
     private String deriveDependencyIdentifier(GraphValue payload, GraphNode target) {
         String groupId = readChildValue(payload, "groupId");
         String artifactId = readChildValue(payload, "artifactId");
@@ -155,6 +228,43 @@ public class CommonValueExtractor {
         String id = target == null ? "" : target.id();
         if (id.startsWith("property:")) {
             return id.substring("property:".length());
+        }
+        return id;
+    }
+
+    private String deriveParentIdentifier(GraphNode target) {
+        String id = target == null ? "" : target.id();
+        if (id.startsWith("parent:")) {
+            return id.substring("parent:".length());
+        }
+        return id;
+    }
+
+    private String derivePluginIdentifier(GraphValue payload, GraphNode target) {
+        String groupId = readChildValue(payload, "groupId");
+        String artifactId = readChildValue(payload, "artifactId");
+
+        StringBuilder builder = new StringBuilder();
+        if (!groupId.isEmpty()) {
+            builder.append(groupId);
+        }
+        if (!artifactId.isEmpty()) {
+            if (builder.length() > 0) {
+                builder.append(':');
+            }
+            builder.append(artifactId);
+        }
+
+        if (builder.length() == 0 && target != null) {
+            builder.append(target.id());
+        }
+        return builder.toString();
+    }
+
+    private String deriveTileIdentifier(GraphNode target) {
+        String id = target == null ? "" : target.id();
+        if (id.startsWith("tile:")) {
+            return id.substring("tile:".length());
         }
         return id;
     }

@@ -31,4 +31,14 @@ public class ParserConfiguration {
     PomFileParser pomFileParser(ModelReader modelReader, ObjectMapper objectMapper) {
         return new PomFileParser(modelReader, objectMapper);
     }
+
+    /**
+     * Provides a directory scanner that reuses the shared {@link PomFileParser}.
+     * @param pomFileParser parser used to read pom.xml files.
+     * @return configured {@link PomDirectoryScanner} instance.
+     */
+    @Bean
+    PomDirectoryScanner pomDirectoryScanner(PomFileParser pomFileParser) {
+        return new PomDirectoryScanner(pomFileParser);
+    }
 }

@@ -160,6 +160,16 @@ public class PomFileParser {
             attachDependencies(graph, pomNode, "managedDependency", dependencyManagement.getDependencies());
         }
 
+        Build build = model.getBuild();
+        if (build != null) {
+            attachPlugins(graph, pomNode, "plugin", build.getPlugins());
+
+            PluginManagement pluginManagement = build.getPluginManagement();
+            if (pluginManagement != null) {
+                attachPlugins(graph, pomNode, "managedPlugin", pluginManagement.getPlugins());
+            }
+        }
+
         List<String> modules = model.getModules();
         if (modules != null) {
             for (String module : modules) {
@@ -183,22 +193,34 @@ public class PomFileParser {
 
             GraphNode dependencyNode = graph.addNode(
                 nodeId("dependency:", dependency.getGroupId(), dependency.getArtifactId(), dependency.getType(), dependency.getClassifier()));
-            TextReference version = createText(graph, dependency.getVersion());
-            if (version == null) {
+            GraphValue value = buildDependencyValue(graph, dependency);
+            if (value == null) {
                 continue;
             }
 
-            Map<String, GraphValue> payload = new LinkedHashMap<>();
-            payload.put("version", GraphValue.text(version));
-            addGraphValue(payload, graph, "groupId", dependency.getGroupId());
-            addGraphValue(payload, graph, "artifactId", dependency.getArtifactId());
-            addGraphValue(payload, graph, "type", dependency.getType());
-            addGraphValue(payload, graph, "classifier", dependency.getClassifier());
-            addGraphValue(payload, graph, "scope", dependency.getScope());
-
-            GraphValue value = GraphValue.composite(payload);
             pomNode.connect(relationship, dependencyNode, value);
+            if ("managedDependency".equals(relationship) && isBom(dependency)) {
+                GraphNode bomNode = graph.addNode(
+                    nodeId("bom:", dependency.getGroupId(), dependency.getArtifactId(), dependency.getType(), dependency.getClassifier()));
+                pomNode.connect("bom", bomNode, value);
+            }
         }
+    }
+
+    private GraphValue buildDependencyValue(TextGraph graph, Dependency dependency) {
+        TextReference version = createText(graph, dependency.getVersion());
+        if (version == null) {
+            return null;
+        }
+
+        Map<String, GraphValue> payload = new LinkedHashMap<>();
+        payload.put("version", GraphValue.text(version));
+        addGraphValue(payload, graph, "groupId", dependency.getGroupId());
+        addGraphValue(payload, graph, "artifactId", dependency.getArtifactId());
+        addGraphValue(payload, graph, "type", dependency.getType());
+        addGraphValue(payload, graph, "classifier", dependency.getClassifier());
+        addGraphValue(payload, graph, "scope", dependency.getScope());
+        return GraphValue.composite(payload);
     }
 
     private void addGraphValue(Map<String, GraphValue> payload, TextGraph graph, String name, String rawValue) {
@@ -209,6 +231,75 @@ public class PomFileParser {
 
         TextReference reference = graph.createText(normalized);
         payload.put(name, GraphValue.text(reference));
+    }
+
+    private void attachPlugins(TextGraph graph, GraphNode pomNode, String relationship, List<Plugin> plugins) {
+        if (plugins == null) {
+            return;
+        }
+
+        for (Plugin plugin : plugins) {
+            if (plugin == null) {
+                continue;
+            }
+
+            GraphValue value = buildPluginValue(graph, plugin);
+            if (value != null) {
+                GraphNode pluginNode = graph.addNode(nodeId("plugin:", plugin.getGroupId(), plugin.getArtifactId()));
+                pomNode.connect(relationship, pluginNode, value);
+            }
+
+            attachTiles(graph, pomNode, plugin.getConfiguration());
+            for (PluginExecution execution : plugin.getExecutions()) {
+                if (execution != null) {
+                    attachTiles(graph, pomNode, execution.getConfiguration());
+                }
+            }
+        }
+    }
+
+    private GraphValue buildPluginValue(TextGraph graph, Plugin plugin) {
+        TextReference version = createText(graph, plugin.getVersion());
+        if (version == null) {
+            return null;
+        }
+
+        Map<String, GraphValue> payload = new LinkedHashMap<>();
+        payload.put("version", GraphValue.text(version));
+        addGraphValue(payload, graph, "groupId", plugin.getGroupId());
+        addGraphValue(payload, graph, "artifactId", plugin.getArtifactId());
+        return GraphValue.composite(payload);
+    }
+
+    private void attachTiles(TextGraph graph, GraphNode pomNode, Object configuration) {
+        if (!(configuration instanceof Xpp3Dom dom)) {
+            return;
+        }
+
+        Xpp3Dom tiles = dom.getChild("tiles");
+        if (tiles == null) {
+            return;
+        }
+
+        Xpp3Dom[] children = tiles.getChildren();
+        if (children == null) {
+            return;
+        }
+
+        for (Xpp3Dom tile : children) {
+            if (tile == null || !"tile".equals(tile.getName())) {
+                continue;
+            }
+
+            String value = normalize(tile.getValue());
+            if (value.isEmpty()) {
+                continue;
+            }
+
+            GraphNode tileNode = graph.addNode(nodeId("tile:", value));
+            TextReference reference = graph.createText(value);
+            pomNode.connect("tile", tileNode, reference);
+        }
     }
 
     private void attachAttribute(TextGraph graph, GraphNode source, String name, String value) {
@@ -228,6 +319,16 @@ public class PomFileParser {
         }
 
         source.connect(relationship, target, reference);
+    }
+
+    private boolean isBom(Dependency dependency) {
+        if (dependency == null) {
+            return false;
+        }
+
+        String type = normalize(dependency.getType());
+        String scope = normalize(dependency.getScope());
+        return "pom".equalsIgnoreCase(type) && "import".equalsIgnoreCase(scope);
     }
 
     private TextReference createText(TextGraph graph, String value) {
