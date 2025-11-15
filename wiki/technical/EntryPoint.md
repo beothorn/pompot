@@ -4,34 +4,41 @@ This section mirrors the behaviors encoded in the server so maintainers can map 
 
 ## Runtime overview
 
-1. **Application bootstrap** (`server/src/main/java/com/pompot/server/PompotApplication.java`)
+1. **CLI report shortcut** (`server/src/main/java/com/pompot/server/PompotApplication.java`)
+   - `PompotApplication.main` scans for `--report-common-values` before mode detection.
+   - When present it instantiates `CommonValueReportCommand` and exits after the report finishes.
+   - Validation failures propagate through the command so exit code `1` can be surfaced without starting Spring.
+2. **Application bootstrap** (`server/src/main/java/com/pompot/server/PompotApplication.java`)
    - `PompotApplication.main` reads command-line arguments via `ApplicationMode.fromArguments`.
    - UI mode loads Spring Boot and pins the HTTP server to port `9754` (`DEFAULT_PORT`).
    - CLI mode short-circuits the Spring context and prints the same "about" message as the binary's standard output tests expect.
-2. **Mode detection** (`server/src/main/java/com/pompot/server/arguments/ApplicationMode.java`)
+3. **Mode detection** (`server/src/main/java/com/pompot/server/arguments/ApplicationMode.java`)
    - `fromArguments` scans for `--mode=cli`; absence means UI mode.
    - `isCli` centralizes the CLI check so callers do not reimplement comparisons.
-3. **Startup parsing** (`server/src/main/java/com/pompot/server/ProjectPomInitializer.java`)
+4. **Startup parsing** (`server/src/main/java/com/pompot/server/ProjectPomInitializer.java`)
    - Implements `ApplicationRunner` so it executes after the Spring context is ready in UI mode.
    - Resolves the scan root from `--parent` or defaults to the working directory, recursively discovering every `pom.xml`. Values that start with `~/` are expanded against `user.home` before the filesystem lookup.
    - Stores a `ParsedPomCollection` with metadata for each parsed file or clears the repository when traversal or parsing fails.
-4. **pom.xml parser** (`server/src/main/java/com/pompot/server/parser/PomFileParser.java`)
+5. **pom.xml parser** (`server/src/main/java/com/pompot/server/parser/PomFileParser.java`)
    - Wraps Maven's `ModelReader` to read the `pom.xml` files selected by the initializer.
    - Converts each `Model` to JSON through Jackson while scrubbing recursive `Xpp3Dom` parent references so serialization terminates.
    - Returns `Optional.empty()` for missing files, invalid paths or runtime exceptions, keeping error handling consistent across callers.
-5. **In-memory storage** (`server/src/main/java/com/pompot/server/parser/ParsedPomRepository.java`)
+6. **In-memory storage** (`server/src/main/java/com/pompot/server/parser/ParsedPomRepository.java`)
    - Uses an `AtomicReference` to store the latest `ParsedPomCollection`.
    - `fetch`, `store` and `clear` wrap direct mutations to make concurrent controller access predictable.
-6. **HTTP controller** (`server/src/main/java/com/pompot/server/ProjectPomController.java`)
+7. **HTTP controller** (`server/src/main/java/com/pompot/server/ProjectPomController.java`)
    - Exposes `GET /api/pom`, returning `200` with the stored collection or `404` when the repository is empty.
    - Provides the UI with a stable contract that mirrors the repository semantics.
 
 ## Data flow summary
 
 ```
-CLI args --> ApplicationMode --> PompotApplication
+CLI args --> PompotApplication --(report flag)--> CommonValueReportCommand
                      |                |
                      |                +--> Spring Boot (UI mode) on port 9754
+                     v
+            ApplicationMode.fromArguments
+                     |
                      v
             ProjectPomInitializer
                      |
